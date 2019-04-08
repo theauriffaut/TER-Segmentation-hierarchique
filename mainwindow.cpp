@@ -3,8 +3,6 @@
 #include <limits>
 #include <queue>
 
-/* **** début de la partie à compléter **** */
-
 void displayVertex(MyMesh* _mesh, int id, MyMesh::Color c){
     _mesh->set_color(_mesh->vertex_handle(id), c);
     _mesh->data(_mesh->vertex_handle(id)).thickness = 10;
