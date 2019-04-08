@@ -36,41 +36,20 @@ class MainWindow : public QMainWindow
 
 public:
 
-    explicit MainWindow(QWidget *parent = 0);
+    explicit MainWindow(QWidget *parent = nullptr);
     ~MainWindow();
-
-    // les 4 fonctions à compléter
-    void showSelections(MyMesh* _mesh);
-    void showSelectionsNeighborhood(MyMesh* _mesh);
-    void showPath(MyMesh* _mesh, int v1, int v2, bool bySize);
-    void showBorder(MyMesh* _mesh);
 
     void displayMesh(MyMesh *_mesh);
     void resetAllColorsAndThickness(MyMesh* _mesh);
 
-private slots:
+    void segmentationSimple(MyMesh* _mesh, int k);
 
+private slots:
     void on_pushButton_chargement_clicked();
-    void on_pushButton_vertexMoins_clicked();
-    void on_pushButton_vertexPlus_clicked();
-    void on_pushButton_edgeMoins_clicked();
-    void on_pushButton_edgePlus_clicked();
-    void on_pushButton_faceMoins_clicked();
-    void on_pushButton_facePlus_clicked();
-    void on_pushButton_afficherCheminNbr_clicked();
-    void on_pushButton_afficherCheminSize_clicked();
-    void on_pushButton_voisinage_clicked();
-    void on_pushButton_bordure_clicked();
+    void on_pushButton_segmentation_clicked();
 
 private:
-
-    bool modevoisinage;
-
     MyMesh mesh;
-
-    int vertexSelection;
-    int edgeSelection;
-    int faceSelection;
 
     Ui::MainWindow *ui;
 };
