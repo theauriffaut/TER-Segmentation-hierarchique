@@ -30,3 +30,9 @@
 *.exe
 *.out
 *.app
+
+#QtCreator user configuration
+*.pro.user
+
+#OpenMesh
+/OpenMesh
