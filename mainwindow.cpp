@@ -3,6 +3,85 @@
 #include <limits>
 #include <queue>
 
+float MainWindow::angleFF(MyMesh* _mesh, int faceID0,  int faceID1)
+{
+    int sign = 0;
+
+    FaceHandle fh0 = _mesh->face_handle ( faceID0 );
+    FaceHandle fh1 = _mesh->face_handle ( faceID1 );
+
+    // On récupère les normales, calcule leur produit scalaire et on renvoie l'angle
+    // signé avec le produit scalaire et le signe trouvé plus tot
+    OpenMesh::Vec3f normal0 (_mesh->normal ( fh0 ) );
+    OpenMesh::Vec3f normal1 (_mesh->normal ( _mesh->face_handle ( faceID1 ) ) );
+    float scalar = normal0 | normal1;
+
+    return abs ( acos ( scalar ) );
+}
+
+void MainWindow::computeAngularDistances( MyMesh *_mesh ) {
+    for ( MyMesh::FaceIter curFace = _mesh->faces_begin( ) ; curFace != _mesh->faces_end( ) ; curFace++ ) {
+        for ( MyMesh::FaceFaceIter curNeigh = _mesh->ff_iter( *curFace ) ; curNeigh.is_valid() ; curNeigh++ ) {
+
+            FaceHandle fh0 = *curFace;
+            FaceHandle fh1 = *curNeigh;
+            float angle = angleFF ( _mesh , fh0.idx() , fh1.idx() );
+            float coef = angle > M_PI ? 1 : 0.1;
+            angularDistances[std::make_pair(  fh0.idx() , fh1.idx() )] = coef * ( 1 - cos( angle ) );
+
+        }
+    }
+}
+
+MyMesh::Point MainWindow::faceGravityCenter( MyMesh *_mesh , int faceID ) {
+    FaceHandle fh = _mesh->face_handle( faceID );
+    std::vector<VertexHandle> vertices;
+    for( MyMesh::FaceVertexIter curVert = _mesh->fv_iter( fh ) ; curVert.is_valid() ; curVert++ ) {
+        vertices.push_back( *curVert );
+    }
+
+    MyMesh::Point result = ( _mesh->point( vertices[0] ) + _mesh->point( vertices[1] ) + _mesh->point( vertices[2] ) ) / 3;
+    return result;
+}
+
+float MainWindow::geodesicDistance( MyMesh *_mesh , int faceID0 , int faceID1 ) {
+    MyMesh::Point center0 = faceGravityCenter( _mesh , faceID0 );
+    MyMesh::Point center1 = faceGravityCenter( _mesh , faceID1 );
+
+     VectorT<float, 3> vector = center1 - center0;
+
+     return abs ( vector.norm() );
+}
+
+void MainWindow::computeGeodesicDistances( MyMesh *_mesh) {
+    for ( MyMesh::FaceIter curFace = _mesh->faces_begin( ) ; curFace != _mesh->faces_end( ) ; curFace++ ) {
+        for ( MyMesh::FaceFaceIter curNeigh = _mesh->ff_iter( *curFace ) ; curNeigh.is_valid() ; curNeigh++ ) {
+
+            FaceHandle fh0 = *curFace;
+            FaceHandle fh1 = *curNeigh;
+            float distance = geodesicDistance( _mesh , fh0.idx() , fh1.idx() );
+            geodesicDistances[std::make_pair(  fh0.idx() , fh1.idx() )] = distance;
+
+        }
+    }
+}
+
+float MainWindow::avgAngularDistance() {
+    float result = 0.0f;
+    for (std::map<std::pair<int , int> , float>::iterator it = angularDistances.begin() ; it != angularDistances.end() ; it++ ) {
+        result += it->second;
+    }
+    return result / angularDistances.size();
+}
+
+float MainWindow::avgGeodesicDistances() {
+    float result = 0.0f;
+    for (std::map<std::pair<int , int> , float>::iterator it = geodesicDistances.begin() ; it != geodesicDistances.end() ; it++ ) {
+        result += it->second;
+    }
+    return result / geodesicDistances.size();
+}
+
 void MainWindow::segmentationSimple(MyMesh* _mesh, int k) {
     for(MyMesh::FaceIter curFace = _mesh->faces_begin(); curFace != _mesh->faces_end(); curFace++) {
         if(curFace->is_valid()) {

@@ -5,6 +5,8 @@
 #include <QMainWindow>
 #include <OpenMesh/Core/IO/MeshIO.hh>
 #include <OpenMesh/Core/Mesh/TriMesh_ArrayKernelT.hh>
+#include <utility>
+#include <map>
 
 namespace Ui {
 class MainWindow;
@@ -42,7 +44,15 @@ public:
     void displayMesh(MyMesh *_mesh);
     void resetAllColorsAndThickness(MyMesh* _mesh);
 
+    float angleFF(MyMesh *_mesh, int faceID0, int faceID1);
+    MyMesh::Point faceGravityCenter( MyMesh *_mesh , int faceID );
+    float geodesicDistance( MyMesh *_mesh , int faceID0 , int faceID1 );
+    void computeGeodesicDistances( MyMesh *_mesh);
+    void computeAngularDistances( MyMesh *_mesh );
     void segmentationSimple(MyMesh* _mesh, int k);
+
+    float avgAngularDistance();
+    float avgGeodesicDistances();
 
 private slots:
     void on_pushButton_chargement_clicked();
@@ -50,7 +60,8 @@ private slots:
 
 private:
     MyMesh mesh;
-
+    std::map<pair<int, int>, float> angularDistances;
+    std::map<pair<int, int>, float> geodesicDistances;
     Ui::MainWindow *ui;
 };
 
