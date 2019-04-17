@@ -7,6 +7,7 @@
 #include <OpenMesh/Core/Mesh/TriMesh_ArrayKernelT.hh>
 #include <utility>
 #include <map>
+#include <algorithm>
 
 namespace Ui {
 class MainWindow;
@@ -46,7 +47,8 @@ public:
 
     float angleFF(MyMesh *_mesh, int faceID0, int faceID1);
     MyMesh::Point faceGravityCenter( MyMesh *_mesh , int faceID );
-    float geodesicDistance( MyMesh *_mesh , int faceID0 , int faceID1 );
+    std::vector<MyMesh::Point> discretizeEdge( MyMesh *_mesh , int edgeID );
+    float geodesicDistance( MyMesh *_mesh , int edgeID);
     void computeGeodesicDistances( MyMesh *_mesh);
     void computeAngularDistances( MyMesh *_mesh );
     void segmentationSimple(MyMesh* _mesh, int k);

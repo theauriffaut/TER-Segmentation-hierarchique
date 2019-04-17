@@ -11,7 +11,7 @@ float MainWindow::angleFF(MyMesh* _mesh, int faceID0,  int faceID1)
     FaceHandle fh1 = _mesh->face_handle ( faceID1 );
 
     // On récupère les normales, calcule leur produit scalaire et on renvoie l'angle
-    // signé avec le produit scalaire et le signe trouvé plus tot
+    // non signé avec le produit scalaire
     OpenMesh::Vec3f normal0 (_mesh->normal ( fh0 ) );
     OpenMesh::Vec3f normal1 (_mesh->normal ( _mesh->face_handle ( faceID1 ) ) );
     float scalar = normal0 | normal1;
@@ -26,8 +26,8 @@ void MainWindow::computeAngularDistances( MyMesh *_mesh ) {
             FaceHandle fh0 = *curFace;
             FaceHandle fh1 = *curNeigh;
             float angle = angleFF ( _mesh , fh0.idx() , fh1.idx() );
-            float coef = angle > M_PI ? 1 : 0.1;
-            angularDistances[std::make_pair(  fh0.idx() , fh1.idx() )] = coef * ( 1 - cos( angle ) );
+            float coef = angle > M_PI ? 0.1 : 1;
+            angularDistances[std::make_pair( fh0.idx() , fh1.idx() )] = coef * ( 1 - cos( angle ) );
 
         }
     }
@@ -44,22 +44,77 @@ MyMesh::Point MainWindow::faceGravityCenter( MyMesh *_mesh , int faceID ) {
     return result;
 }
 
-float MainWindow::geodesicDistance( MyMesh *_mesh , int faceID0 , int faceID1 ) {
-    MyMesh::Point center0 = faceGravityCenter( _mesh , faceID0 );
-    MyMesh::Point center1 = faceGravityCenter( _mesh , faceID1 );
+std::vector<MyMesh::Point> MainWindow::discretizeEdge( MyMesh *_mesh , int edgeID ) {
+    EdgeHandle eh = _mesh->edge_handle( edgeID );
+    HalfedgeHandle heh = _mesh->halfedge_handle( eh , 0 );
 
-     VectorT<float, 3> vector = center1 - center0;
+    VertexHandle vh0 = _mesh->to_vertex_handle( heh );
+    VertexHandle vh1 = _mesh->from_vertex_handle( heh );
 
-     return abs ( vector.norm() );
+    std::vector<MyMesh::Point> discretizedPoints {_mesh->point( vh0 ) , _mesh->point( vh1 )};
+    std::vector<MyMesh::Point> updatedPoints ( discretizedPoints );
+
+    while( discretizedPoints.size() < 17 ) {
+
+        for ( int i = 0 ; i < discretizedPoints.size() ; ++i ) {
+
+            MyMesh::Point newPoint = (discretizedPoints[i] + discretizedPoints[i + 1]) / 2;
+            auto it = updatedPoints.begin();
+            updatedPoints.insert( it + i + 1 , newPoint );
+
+        }
+        discretizedPoints = updatedPoints;
+
+    }
+
+    return discretizedPoints;
 }
 
-void MainWindow::computeGeodesicDistances( MyMesh *_mesh) {
+float MainWindow::geodesicDistance( MyMesh *_mesh , int edgeID ) {
+    EdgeHandle eh = _mesh->edge_handle( edgeID );
+    HalfedgeHandle heh0 = _mesh->halfedge_handle( eh , 0 );
+    HalfedgeHandle heh1 = _mesh->halfedge_handle( eh , 1 );
+
+    FaceHandle fh0 = _mesh->face_handle ( heh0 );
+    FaceHandle fh1 = _mesh->face_handle ( heh1 );
+
+    MyMesh::Point center0 = faceGravityCenter( _mesh , fh0.idx() );
+    MyMesh::Point center1 = faceGravityCenter( _mesh , fh1.idx() );
+
+     std::vector<MyMesh::Point> edgePoints = discretizeEdge( _mesh , edgeID );
+
+     std::sort ( edgePoints.begin ( ) , edgePoints.end ( ) , [=](MyMesh::Point p1, MyMesh::Point p2) {
+         VectorT<float, 3> vector0 = p1 - center0;
+         VectorT<float, 3> vector1 = center1 - p1;
+         float length0 = abs( vector0.norm() ) + abs( vector1.norm() );
+
+
+         vector0 = p2 - center0;
+         vector1 = center1 - p2;
+         float length1 = abs( vector0.norm() ) + abs( vector1.norm() );
+
+         return length0 < length1;
+     } );
+
+     MyMesh::Point pointForShortestPath = edgePoints.front();
+     VectorT<float, 3> vector0 = pointForShortestPath - center0;
+     VectorT<float, 3> vector1 = center1 - pointForShortestPath;
+     return ( abs( vector0.norm() ) + abs( vector1.norm() ) );
+}
+
+void MainWindow::computeGeodesicDistances( MyMesh *_mesh ) {
     for ( MyMesh::FaceIter curFace = _mesh->faces_begin( ) ; curFace != _mesh->faces_end( ) ; curFace++ ) {
-        for ( MyMesh::FaceFaceIter curNeigh = _mesh->ff_iter( *curFace ) ; curNeigh.is_valid() ; curNeigh++ ) {
+        for ( MyMesh::FaceEdgeIter curEdge = _mesh->fe_iter( *curFace ) ; curEdge.is_valid() ; curEdge++ ) {
 
             FaceHandle fh0 = *curFace;
-            FaceHandle fh1 = *curNeigh;
-            float distance = geodesicDistance( _mesh , fh0.idx() , fh1.idx() );
+            EdgeHandle eh = *curEdge;
+            HalfedgeHandle heh0 = _mesh->halfedge_handle( eh , 0 );
+            HalfedgeHandle heh1 = _mesh->halfedge_handle( eh , 1 );
+
+            FaceHandle fh1 = _mesh->face_handle( heh0 );
+            if( fh0.idx() == fh1.idx() ) fh1 = _mesh->face_handle( heh1 );
+
+            float distance = geodesicDistance( _mesh , eh.idx() );
             geodesicDistances[std::make_pair(  fh0.idx() , fh1.idx() )] = distance;
 
         }
