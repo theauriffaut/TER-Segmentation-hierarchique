@@ -3,31 +3,33 @@
 #include <limits>
 #include <queue>
 
-float MainWindow::angleFF(MyMesh* _mesh, int faceID0,  int faceID1)
-{
-    int sign = 0;
+#define myqDebug() qDebug() << fixed << qSetRealNumberPrecision(8)
 
+double MainWindow::angleFF(MyMesh* _mesh, int faceID0,  int faceID1)
+{
     FaceHandle fh0 = _mesh->face_handle ( faceID0 );
     FaceHandle fh1 = _mesh->face_handle ( faceID1 );
 
     // On récupère les normales, calcule leur produit scalaire et on renvoie l'angle
     // non signé avec le produit scalaire
     OpenMesh::Vec3f normal0 (_mesh->normal ( fh0 ) );
-    OpenMesh::Vec3f normal1 (_mesh->normal ( _mesh->face_handle ( faceID1 ) ) );
-    float scalar = normal0 | normal1;
+    OpenMesh::Vec3f normal1 (_mesh->normal ( fh1 ) );
+    double scalar = normal0 | normal1;
 
-    return abs ( acos ( scalar ) );
+    return acos ( scalar );
 }
 
 void MainWindow::computeAngularDistances( MyMesh *_mesh ) {
+    angularDistances.clear();
     for ( MyMesh::FaceIter curFace = _mesh->faces_begin( ) ; curFace != _mesh->faces_end( ) ; curFace++ ) {
         for ( MyMesh::FaceFaceIter curNeigh = _mesh->ff_iter( *curFace ) ; curNeigh.is_valid() ; curNeigh++ ) {
 
             FaceHandle fh0 = *curFace;
             FaceHandle fh1 = *curNeigh;
-            float angle = angleFF ( _mesh , fh0.idx() , fh1.idx() );
-            float coef = angle > M_PI ? 0.1 : 1;
-            angularDistances[std::make_pair( fh0.idx() , fh1.idx() )] = coef * ( 1 - cos( angle ) );
+            double angle = angleFF( _mesh , fh0.idx() , fh1.idx() );
+            //myqDebug() << angle;
+            double coef = angle > M_PI ? 0.1 : 1.0;
+            angularDistances[std::make_pair( fh0.idx() , fh1.idx() )] = coef * ( 1.0 - cos( angle ) );
 
         }
     }
@@ -70,7 +72,7 @@ std::vector<MyMesh::Point> MainWindow::discretizeEdge( MyMesh *_mesh , int edgeI
     return discretizedPoints;
 }
 
-float MainWindow::geodesicDistance( MyMesh *_mesh , int edgeID ) {
+double MainWindow::geodesicDistance( MyMesh *_mesh , int edgeID ) {
     EdgeHandle eh = _mesh->edge_handle( edgeID );
     HalfedgeHandle heh0 = _mesh->halfedge_handle( eh , 0 );
     HalfedgeHandle heh1 = _mesh->halfedge_handle( eh , 1 );
@@ -86,15 +88,22 @@ float MainWindow::geodesicDistance( MyMesh *_mesh , int edgeID ) {
      std::sort ( edgePoints.begin ( ) , edgePoints.end ( ) , [=](MyMesh::Point p1, MyMesh::Point p2) {
          VectorT<float, 3> vector0 = p1 - center0;
          VectorT<float, 3> vector1 = center1 - p1;
-         float length0 = abs( vector0.norm() ) + abs( vector1.norm() );
+         double length0 = abs( vector0.norm() ) + abs( vector1.norm() );
 
 
          vector0 = p2 - center0;
          vector1 = center1 - p2;
-         float length1 = abs( vector0.norm() ) + abs( vector1.norm() );
+         double length1 = abs( vector0.norm() ) + abs( vector1.norm() );
 
          return length0 < length1;
      } );
+
+     for( int i = 0 ; i != edgePoints.size() ; ++i ) {
+         MyMesh::Point p1 = edgePoints[i];
+         VectorT<float, 3> vector0 = p1 - center0;
+         VectorT<float, 3> vector1 = center1 - p1;
+         double length0 = abs( vector0.norm() ) + abs( vector1.norm() );
+     }
 
      MyMesh::Point pointForShortestPath = edgePoints.front();
      VectorT<float, 3> vector0 = pointForShortestPath - center0;
@@ -103,6 +112,7 @@ float MainWindow::geodesicDistance( MyMesh *_mesh , int edgeID ) {
 }
 
 void MainWindow::computeGeodesicDistances( MyMesh *_mesh ) {
+    geodesicDistances.clear();
     for ( MyMesh::FaceIter curFace = _mesh->faces_begin( ) ; curFace != _mesh->faces_end( ) ; curFace++ ) {
         for ( MyMesh::FaceEdgeIter curEdge = _mesh->fe_iter( *curFace ) ; curEdge.is_valid() ; curEdge++ ) {
 
@@ -114,27 +124,51 @@ void MainWindow::computeGeodesicDistances( MyMesh *_mesh ) {
             FaceHandle fh1 = _mesh->face_handle( heh0 );
             if( fh0.idx() == fh1.idx() ) fh1 = _mesh->face_handle( heh1 );
 
-            float distance = geodesicDistance( _mesh , eh.idx() );
+            //Si la face est en bordure, on passe a l'arête voisine suivante si il n'y pas de face opposée liée
+            if ( fh1.idx ( ) > _mesh->n_faces ( ) )
+                continue;
+
+            double distance = geodesicDistance( _mesh , eh.idx() );
             geodesicDistances[std::make_pair(  fh0.idx() , fh1.idx() )] = distance;
 
         }
     }
 }
 
-float MainWindow::avgAngularDistance() {
-    float result = 0.0f;
-    for (std::map<std::pair<int , int> , float>::iterator it = angularDistances.begin() ; it != angularDistances.end() ; it++ ) {
+double MainWindow::avgAngularDistance() {
+    double result = 0.0;
+    for (std::map<std::pair<int , int> , double>::iterator it = angularDistances.begin() ; it != angularDistances.end() ; it++ ) {
         result += it->second;
     }
     return result / angularDistances.size();
 }
 
-float MainWindow::avgGeodesicDistances() {
-    float result = 0.0f;
-    for (std::map<std::pair<int , int> , float>::iterator it = geodesicDistances.begin() ; it != geodesicDistances.end() ; it++ ) {
+double MainWindow::avgGeodesicDistances() {
+    double result = 0.0;
+    for (std::map<std::pair<int , int> , double>::iterator it = geodesicDistances.begin() ; it != geodesicDistances.end() ; it++ ) {
         result += it->second;
     }
     return result / geodesicDistances.size();
+}
+
+void MainWindow::displayGeodesicDistances(){
+    for (std::map<std::pair<int , int> , double>::iterator it = geodesicDistances.begin() ; it != geodesicDistances.end() ; it++ ) {
+        std::pair<int, int> key = it->first;
+        float value = it->second;
+
+        myqDebug() << "La distance géodésique entre la face " << std::get<0>(key)
+                  << " et la face " << std::get<1>(key) << " est de " << value << ".";
+    }
+}
+
+void MainWindow::displayAngularDistances() {
+    for (std::map<std::pair<int , int> , double>::iterator it = angularDistances.begin() ; it != angularDistances.end() ; it++ ) {
+        std::pair<int, int> key = it->first;
+        float value = it->second;
+
+        myqDebug() << "La distance angulaire entre la face " << std::get<0>(key)
+                  << " et la face " << std::get<1>(key) << " est de " << value << ".";
+    }
 }
 
 void MainWindow::segmentationSimple(MyMesh* _mesh, int k) {
@@ -144,6 +178,19 @@ void MainWindow::segmentationSimple(MyMesh* _mesh, int k) {
         }
     }
     displayMesh(_mesh);
+
+    //computeAngularDistances( _mesh );
+    //computeGeodesicDistances( _mesh );
+    //displayAngularDistances();
+    //displayGeodesicDistances();
+
+    Graph g;
+    g.addVertex(0);
+    g.addVertex(1);
+    g.addVertex(2);
+    g.addVertex(0);
+    g.addEdge(0, 1, 20.3);
+    g.displayGraph();
 }
 
 /* **** début de la partie boutons et IHM **** */

@@ -41,11 +41,14 @@ macx: {
 SOURCES += \
         main.cpp \
         mainwindow.cpp \
-    meshviewerwidget.cpp
+    meshviewerwidget.cpp \
+    graph.cpp
 
 HEADERS += \
         mainwindow.h \
-    meshviewerwidget.h
+    meshviewerwidget.h \
+    graphvertex.h \
+    graph.h
 
 FORMS += \
         mainwindow.ui

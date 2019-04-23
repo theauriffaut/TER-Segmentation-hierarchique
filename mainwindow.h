@@ -8,6 +8,8 @@
 #include <utility>
 #include <map>
 #include <algorithm>
+#include <cmath>
+#include "graph.h"
 
 namespace Ui {
 class MainWindow;
@@ -45,16 +47,19 @@ public:
     void displayMesh(MyMesh *_mesh);
     void resetAllColorsAndThickness(MyMesh* _mesh);
 
-    float angleFF(MyMesh *_mesh, int faceID0, int faceID1);
+    double angleFF(MyMesh *_mesh, int faceID0, int faceID1);
     MyMesh::Point faceGravityCenter( MyMesh *_mesh , int faceID );
     std::vector<MyMesh::Point> discretizeEdge( MyMesh *_mesh , int edgeID );
-    float geodesicDistance( MyMesh *_mesh , int edgeID);
+    double geodesicDistance( MyMesh *_mesh , int edgeID);
     void computeGeodesicDistances( MyMesh *_mesh);
     void computeAngularDistances( MyMesh *_mesh );
     void segmentationSimple(MyMesh* _mesh, int k);
 
-    float avgAngularDistance();
-    float avgGeodesicDistances();
+    double avgAngularDistance();
+    double avgGeodesicDistances();
+
+    void displayGeodesicDistances();
+    void displayAngularDistances();
 
 private slots:
     void on_pushButton_chargement_clicked();
@@ -62,8 +67,8 @@ private slots:
 
 private:
     MyMesh mesh;
-    std::map<pair<int, int>, float> angularDistances;
-    std::map<pair<int, int>, float> geodesicDistances;
+    std::map<pair<int, int>, double> angularDistances;
+    std::map<pair<int, int>, double> geodesicDistances;
     Ui::MainWindow *ui;
 };
 
