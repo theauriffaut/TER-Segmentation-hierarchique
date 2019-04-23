@@ -27,10 +27,10 @@ void Graph::addVertex( int vertexID ) {
 void Graph::addEdge( int vertexID0 , int vertexID1 , double weight ) {
     addVertex( vertexID0 );
     addVertex( vertexID1 );
-    GraphVertex v0 = getVertexById( vertexID0 );
-    GraphVertex v1 = getVertexById( vertexID1 );
-    v0.getAdjacencyList()[vertexID1] = weight;
-    v1.getAdjacencyList()[vertexID0] = weight;
+    //GraphVertex v0 = ;
+    //GraphVertex v1 = ;
+    m_vertices[getVertexById( vertexID0 )].m_adjacencyList[vertexID1] = weight;
+    m_vertices[getVertexById( vertexID1 )].m_adjacencyList[vertexID0] = weight;
 }
 
 void Graph::displayGraph( ) {

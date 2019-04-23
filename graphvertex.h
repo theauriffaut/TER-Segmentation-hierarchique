@@ -5,6 +5,7 @@
 #include <map>
 #include <algorithm>
 #include <iostream>
+#include <utility>
 
 class GraphVertex
 {
@@ -16,23 +17,18 @@ public:
         this->m_id = id;
     }
 
+    std::map<int , double> m_adjacencyList;
     inline int getId() { return this->m_id; }
-    inline std::map<int , double> getAdjacencyList () { return this->m_adjacencyList; }
     inline void displayVertex() {
-
         std::cout << m_id << ":->";
-        for( std::map<int , double>::iterator it = m_adjacencyList.begin() ; it != m_adjacencyList.end() ; it++ ) {
-            std::cout << it->first << "=" << it->second;
-            if( it != m_adjacencyList.end() ) {
-                std::cout << "->";
-            }
+        for( std::map<int , double>::iterator it = m_adjacencyList.begin() ; it != m_adjacencyList.end() ; ++it ) {
+            std::cout << it->first << "=" << it->second << "->";
         }
         std::cout << std::endl;
     }
 
 private:
     int m_id;
-    std::map<int , double> m_adjacencyList;
 };
 
 #endif // GRAPHVERTEX_H
