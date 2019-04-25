@@ -34,6 +34,7 @@ void Graph::addEdge( int vertexID0 , int vertexID1 , double weight ) {
 }
 
 void Graph::displayGraph( ) {
+
     for( int i = 0 ; i < m_vertices.size() ; ++i ) {
         m_vertices[i].displayVertex();
     }

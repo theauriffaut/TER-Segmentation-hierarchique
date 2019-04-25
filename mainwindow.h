@@ -53,6 +53,7 @@ public:
     double geodesicDistance( MyMesh *_mesh , int edgeID);
     void computeGeodesicDistances( MyMesh *_mesh);
     void computeAngularDistances( MyMesh *_mesh );
+    void computeWeight( MyMesh *_mesh , double coefGeod );
     void segmentationSimple(MyMesh* _mesh, int k);
 
     double avgAngularDistance();
@@ -69,6 +70,7 @@ private:
     MyMesh mesh;
     std::map<pair<int, int>, double> angularDistances;
     std::map<pair<int, int>, double> geodesicDistances;
+    Graph dual;
     Ui::MainWindow *ui;
 };
 

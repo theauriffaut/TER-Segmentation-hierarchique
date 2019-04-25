@@ -135,6 +135,42 @@ void MainWindow::computeGeodesicDistances( MyMesh *_mesh ) {
     }
 }
 
+void MainWindow::computeWeight( MyMesh *_mesh , double coefGeod ) {
+    for ( MyMesh::FaceIter curFace = _mesh->faces_begin( ) ; curFace != _mesh->faces_end( ) ; curFace++ ) {
+        for ( MyMesh::FaceEdgeIter curEdge = _mesh->fe_iter( *curFace ) ; curEdge.is_valid() ; curEdge++ ) {
+
+            FaceHandle fh0 = *curFace;
+            EdgeHandle eh = *curEdge;
+            HalfedgeHandle heh0 = _mesh->halfedge_handle( eh , 0 );
+            HalfedgeHandle heh1 = _mesh->halfedge_handle( eh , 1 );
+
+            FaceHandle fh1 = _mesh->face_handle( heh0 );
+            if( fh0.idx() == fh1.idx() ) fh1 = _mesh->face_handle( heh1 );
+
+            //Si la face est en bordure, on passe a l'arête voisine suivante si il n'y pas de face opposée liée
+            if ( fh1.idx ( ) > _mesh->n_faces ( ) )
+                continue;
+
+            std::pair<int , int> key = std::make_pair( fh0.idx() , fh1.idx() );
+            double geodesicDistance = geodesicDistances[key];
+            double angularDistance = angularDistances[key];
+
+            /* Formule finale quand on aura plus les NaN dans la distance angulaire
+             *
+             * double weight = ( coedGeod * ( geodesicDistance / avgGeodesicDistances() ) +
+             *                 ( ( 1 - coefGeod ) * ( angularDistance / avgAngularDistances() );
+             *
+             */
+
+             //Pour le moment
+             double weight = geodesicDistance / avgGeodesicDistances();
+
+             dual.addEdge( fh0.idx() , fh1.idx() , weight );
+        }
+    }
+}
+
+
 double MainWindow::avgAngularDistance() {
     double result = 0.0;
     for (std::map<std::pair<int , int> , double>::iterator it = angularDistances.begin() ; it != angularDistances.end() ; it++ ) {
@@ -179,12 +215,15 @@ void MainWindow::segmentationSimple(MyMesh* _mesh, int k) {
     }
     displayMesh(_mesh);
 
-    //computeAngularDistances( _mesh );
-    //computeGeodesicDistances( _mesh );
+    computeAngularDistances( _mesh );
+    computeGeodesicDistances( _mesh );
     //displayAngularDistances();
     //displayGeodesicDistances();
 
-    Graph g;
+    computeWeight( _mesh , 1 );
+
+    dual.displayGraph();
+    /*Graph g;
     g.addVertex(0);
     g.addVertex(1);
     g.addVertex(2);
@@ -194,8 +233,7 @@ void MainWindow::segmentationSimple(MyMesh* _mesh, int k) {
     g.addEdge(0, 1, 20.3);
     g.addEdge(1, 3, 10.0);
     g.addEdge(2, 10, 14.0);
-    g.addEdge(200, 100, 0.1);
-    g.displayGraph();
+    g.addEdge(200, 100, 0.1);*/
 }
 
 /* **** début de la partie boutons et IHM **** */

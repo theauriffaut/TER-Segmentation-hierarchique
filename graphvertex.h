@@ -6,6 +6,7 @@
 #include <algorithm>
 #include <iostream>
 #include <utility>
+#include <iomanip>
 
 class GraphVertex
 {
@@ -22,7 +23,7 @@ public:
     inline void displayVertex() {
         std::cout << m_id << ":->";
         for( std::map<int , double>::iterator it = m_adjacencyList.begin() ; it != m_adjacencyList.end() ; ++it ) {
-            std::cout << it->first << "=" << it->second << "->";
+            std::cout << it->first << "=" << std::setprecision(4) << it->second << "->";
         }
         std::cout << std::endl;
     }
