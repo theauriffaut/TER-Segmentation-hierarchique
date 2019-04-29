@@ -2,13 +2,14 @@
 #include "ui_mainwindow.h"
 #include <limits>
 #include <queue>
+#include <time.h>
 
 #define myqDebug() qDebug() << fixed << qSetRealNumberPrecision(8)
 
 auto compWeight = [](const QPair<int, double> &a, const QPair<int, double> &b) {return a.second > b.second; };
 
 // calcul le plus court chemin en taille à l'aide de l'algorithme de dijkstra
-QVector<int> MainWindow::dijkstraDual(int v1, int v2) {
+double MainWindow::dijkstraDual(int v1, int v2) {
 
   int NbNodes = dual.getNbVertices();
   //int NbEdges = dual.getNbEdges();
@@ -51,21 +52,34 @@ QVector<int> MainWindow::dijkstraDual(int v1, int v2) {
   QVector<int> chemin;
 
   if(Parents[v2] == -1){
-       qDebug() << "Erreur : Chemin impossible entre le vertex" << v1 << "et le vertex" << v2 << "car composante non connexe";
+      if(v2 != StartNode) {
+        qDebug() << "Erreur : Chemin impossible entre le vertex" << v1 << "et le vertex" << v2 << "car composante non connexe";
+      } else {
+        return 0;
+      }
+
   } else {
 
 
     chemin.push_back(v2);
-    qDebug() << "Vertex depart :" << v2;
+    //qDebug() << "Vertex depart :" << v2;
     for (int p = Parents[v2]; p != -1; p = Parents[p]){
-      qDebug() << " <- " << p;
+      //qDebug() << " <- " << p;
       chemin.push_back(p);
     }
 
-    qDebug() << "Chemin depuis le vertex" << StartNode << "au vertex" << v2 << "a une taille de" << Distances[v2] << endl;
+    //qDebug() << "Chemin depuis le vertex" << StartNode << "au vertex" << v2 << "a une taille de" << Distances[v2] << endl;
   }
 
-    return chemin;
+    return Distances[v2];
+}
+
+void MainWindow::dijkstraByREP(MyMesh* _mesh, int IdFaceREP, int k) {
+    for(MyMesh::FaceIter curFace = _mesh->faces_begin(); curFace != _mesh->faces_end(); curFace++) {
+        _mesh->property(dist, *curFace).push_back(dijkstraDual(IdFaceREP, (*curFace).idx()));
+        nbDijkstraDone++;
+        ui->progressDijkstra->setValue(nbDijkstraDone);
+    }
 }
 
 double MainWindow::angleFF(MyMesh* _mesh, int faceID0,  int faceID1)
@@ -199,6 +213,10 @@ void MainWindow::computeGeodesicDistances( MyMesh *_mesh ) {
 }
 
 void MainWindow::computeWeight( MyMesh *_mesh , double coefGeod ) {
+    int progress = 0;
+    ui->progressDual->setRange(0, _mesh->n_faces());
+    ui->progressDual->setFormat("%p%");
+    ui->progressDual->setValue(progress);
     for ( MyMesh::FaceIter curFace = _mesh->faces_begin( ) ; curFace != _mesh->faces_end( ) ; curFace++ ) {
         for ( MyMesh::FaceEdgeIter curEdge = _mesh->fe_iter( *curFace ) ; curEdge.is_valid() ; curEdge++ ) {
 
@@ -230,6 +248,9 @@ void MainWindow::computeWeight( MyMesh *_mesh , double coefGeod ) {
 
              dual.addEdge( fh0.idx() , fh1.idx() , weight );
         }
+        progress++;
+        ui->progressDual->setValue(progress);
+
     }
 }
 
@@ -271,12 +292,17 @@ void MainWindow::displayAngularDistances() {
 }
 
 void MainWindow::segmentationSimple(MyMesh* _mesh, int k) {
-    for(MyMesh::FaceIter curFace = _mesh->faces_begin(); curFace != _mesh->faces_end(); curFace++) {
-        if(curFace->is_valid()) {
-            _mesh->set_color(*curFace, MyMesh::Color(255,0,0));
-        }
-    }
+
+
+    ui->progressTotal->setValue(0);
+    ui->progressColor->setValue(0);
+    ui->progressDual->setValue(0);
+    ui->progressDijkstra->setValue(0);
+
+    int nbStepsDone = 0;
+
     displayMesh(_mesh);
+    _mesh->add_property(dist, "dist");
 
     computeAngularDistances( _mesh );
     computeGeodesicDistances( _mesh );
@@ -284,12 +310,68 @@ void MainWindow::segmentationSimple(MyMesh* _mesh, int k) {
     //displayGeodesicDistances();
 
     computeWeight( _mesh , 1 );
+    nbStepsDone++;
 
     //dual.displayGraph();
-    QVector<int> chemin = dijkstraDual(4622, 4986);
-    for(int vertex : chemin) {
-        qDebug() << vertex;
+
+    QVector<int> REPs = {3, 135};
+    int tmp_k = REPs.size();
+    ui->progressTotal->setRange(0, tmp_k+2);
+    ui->progressTotal->setFormat("%p%");
+    ui->progressTotal->setValue(nbStepsDone);
+
+    ui->progressDijkstra->setRange(0, _mesh->n_faces());
+    ui->progressDijkstra->setFormat("%p%");
+    ui->progressDijkstra->setValue(nbDijkstraDone);
+
+    for(int i = 0; i < tmp_k; i++) {
+        dijkstraByREP(_mesh, REPs[i], i);
+        nbStepsDone++;
+        ui->progressTotal->setValue(nbStepsDone);
+        nbDijkstraDone = 0;
     }
+
+    int nbFacesColored = 0;
+    ui->progressColor->setRange(0, _mesh->n_faces());
+    ui->progressColor->setFormat("%p%");
+    ui->progressColor->setValue(nbFacesColored);
+
+    QVector<MyMesh::Color> colors;
+    qsrand(time(nullptr));
+    for(int i = 0; i < tmp_k; i++) {
+       colors.push_back(MyMesh::Color(qrand()%256,qrand()%256,qrand()%256));
+    }
+
+    double distMAX = dijkstraDual(3, 135);
+    for(MyMesh::FaceIter curFace = _mesh->faces_begin(); curFace != _mesh->faces_end(); curFace++) {
+        bool alreadyColored = false;
+        for(int i = 0; i < tmp_k; i++) {
+            if(!alreadyColored) {
+                if(_mesh->property(dist, *curFace)[i] <= distMAX/2+10) {
+                    _mesh->set_color(*curFace, colors[i]);
+                    alreadyColored = true;
+                } else {
+                    _mesh->set_color(*curFace, MyMesh::Color(255,0,0));
+                }
+            } else if(_mesh->property(dist, *curFace)[i] <= distMAX/2+10) {
+                _mesh->set_color(*curFace, MyMesh::Color(255,0,0));
+            }
+        }
+        if(!alreadyColored){
+            _mesh->set_color(*curFace, MyMesh::Color(255,0,0));
+        }
+        nbFacesColored++;
+        ui->progressColor->setValue(nbFacesColored);
+    }
+    nbStepsDone++;
+    ui->progressTotal->setValue(nbStepsDone);
+
+    for(int i = 0; i < tmp_k; i++) {
+        _mesh->set_color(_mesh->face_handle(REPs[i]), MyMesh::Color(0,255,0));
+    }
+    displayMesh(_mesh);
+
+    //double dist = dijkstraDual(3, 135);
 
     /*Graph g;
     g.addVertex(0);

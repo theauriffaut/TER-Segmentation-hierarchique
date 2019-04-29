@@ -62,7 +62,12 @@ public:
     void displayGeodesicDistances();
     void displayAngularDistances();
 
-    QVector<int> dijkstraDual(int v1, int v2);
+    double dijkstraDual(int v1, int v2);
+    void dijkstraByREP(MyMesh *_mesh, int IdFaceREP, int k);
+
+    FPropHandleT<QVector<double>> dist;
+
+
 private slots:
     void on_pushButton_chargement_clicked();
     void on_pushButton_segmentation_clicked();
@@ -73,6 +78,7 @@ private:
     std::map<pair<int, int>, double> geodesicDistances;
     Graph dual;
     Ui::MainWindow *ui;
+    int nbDijkstraDone = 0;
 };
 
 #endif // MAINWINDOW_H
