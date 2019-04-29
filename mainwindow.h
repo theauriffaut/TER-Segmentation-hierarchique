@@ -62,6 +62,7 @@ public:
     void displayGeodesicDistances();
     void displayAngularDistances();
 
+    QVector<int> dijkstraDual(int v1, int v2);
 private slots:
     void on_pushButton_chargement_clicked();
     void on_pushButton_segmentation_clicked();

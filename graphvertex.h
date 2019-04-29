@@ -19,7 +19,7 @@ public:
     }
 
     std::map<int , double> m_adjacencyList;
-    inline int getId() { return this->m_id; }
+    inline int getId() const { return this->m_id; }
     inline void displayVertex() {
         std::cout << m_id << ":->";
         for( std::map<int , double>::iterator it = m_adjacencyList.begin() ; it != m_adjacencyList.end() ; ++it ) {

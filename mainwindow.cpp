@@ -5,6 +5,69 @@
 
 #define myqDebug() qDebug() << fixed << qSetRealNumberPrecision(8)
 
+auto compWeight = [](const QPair<int, double> &a, const QPair<int, double> &b) {return a.second > b.second; };
+
+// calcul le plus court chemin en taille à l'aide de l'algorithme de dijkstra
+QVector<int> MainWindow::dijkstraDual(int v1, int v2) {
+
+  int NbNodes = dual.getNbVertices();
+  //int NbEdges = dual.getNbEdges();
+
+  int StartNode = v1;
+
+  QVector<double> Distances(NbNodes, DBL_MAX);
+
+  Distances[StartNode] = 0;
+
+  QVector<int> Parents(NbNodes, -1);
+
+  priority_queue<QPair<int, double>, QVector<QPair<int, double>>, decltype(compWeight)> Q(compWeight);
+  Q.push(QPair<int, double>(StartNode, 0));
+
+  QVector<std::map<int, double>> G(NbNodes);
+  for(int i = 0; i < NbNodes; i++) {
+      G[dual[i].getId()] = dual[i].m_adjacencyList;
+  }
+
+  while (!Q.empty()) {
+    int v = Q.top().first;
+    double w = Q.top().second;
+    Q.pop();
+
+    if (w <= Distances[v]) {
+      for (const auto& i : G[v]) {
+        int v2 = i.first;
+        double w2 = i.second;
+
+        if (Distances[v] + w2 < Distances[v2]) {
+          Distances[v2] = Distances[v] + w2;
+          Parents[v2] = v;
+          Q.push(QPair<int, double>(v2, Distances[v2]));
+        }
+      }
+    }
+  }
+
+  QVector<int> chemin;
+
+  if(Parents[v2] == -1){
+       qDebug() << "Erreur : Chemin impossible entre le vertex" << v1 << "et le vertex" << v2 << "car composante non connexe";
+  } else {
+
+
+    chemin.push_back(v2);
+    qDebug() << "Vertex depart :" << v2;
+    for (int p = Parents[v2]; p != -1; p = Parents[p]){
+      qDebug() << " <- " << p;
+      chemin.push_back(p);
+    }
+
+    qDebug() << "Chemin depuis le vertex" << StartNode << "au vertex" << v2 << "a une taille de" << Distances[v2] << endl;
+  }
+
+    return chemin;
+}
+
 double MainWindow::angleFF(MyMesh* _mesh, int faceID0,  int faceID1)
 {
     FaceHandle fh0 = _mesh->face_handle ( faceID0 );
@@ -222,7 +285,12 @@ void MainWindow::segmentationSimple(MyMesh* _mesh, int k) {
 
     computeWeight( _mesh , 1 );
 
-    dual.displayGraph();
+    //dual.displayGraph();
+    QVector<int> chemin = dijkstraDual(4622, 4986);
+    for(int vertex : chemin) {
+        qDebug() << vertex;
+    }
+
     /*Graph g;
     g.addVertex(0);
     g.addVertex(1);
