@@ -104,9 +104,10 @@ void MainWindow::computeAngularDistances( MyMesh *_mesh ) {
             FaceHandle fh0 = *curFace;
             FaceHandle fh1 = *curNeigh;
             double angle = angleFF( _mesh , fh0.idx() , fh1.idx() );
-            //myqDebug() << angle;
             double coef = angle > M_PI ? 0.1 : 1.0;
-            angularDistances[std::make_pair( fh0.idx() , fh1.idx() )] = coef * ( 1.0 - cos( angle ) );
+            double result = coef * ( 1.0 - cos( angle ) );
+            if( isnan( result ) ) result = 0.0;
+            angularDistances[std::make_pair( fh0.idx() , fh1.idx() )] = result;
 
         }
     }
@@ -217,6 +218,10 @@ void MainWindow::computeWeight( MyMesh *_mesh , double coefGeod ) {
     ui->progressDual->setRange(0, _mesh->n_faces());
     ui->progressDual->setFormat("%p%");
     ui->progressDual->setValue(progress);
+
+    double avgGeodesic = avgGeodesicDistances();
+    double avgAngular = avgAngularDistances();
+
     for ( MyMesh::FaceIter curFace = _mesh->faces_begin( ) ; curFace != _mesh->faces_end( ) ; curFace++ ) {
         for ( MyMesh::FaceEdgeIter curEdge = _mesh->fe_iter( *curFace ) ; curEdge.is_valid() ; curEdge++ ) {
 
@@ -236,15 +241,12 @@ void MainWindow::computeWeight( MyMesh *_mesh , double coefGeod ) {
             double geodesicDistance = geodesicDistances[key];
             double angularDistance = angularDistances[key];
 
-            /* Formule finale quand on aura plus les NaN dans la distance angulaire
-             *
-             * double weight = ( coedGeod * ( geodesicDistance / avgGeodesicDistances() ) +
-             *                 ( ( 1 - coefGeod ) * ( angularDistance / avgAngularDistances() );
-             *
-             */
+            double weight = ( coefGeod * ( geodesicDistance / avgGeodesic ) ) +
+                            ( ( 1 - coefGeod ) * ( angularDistance / avgAngular ) );
 
+            //qDebug() << weight;
              //Pour le moment
-             double weight = geodesicDistance / avgGeodesicDistances();
+             //double weight = geodesicDistance / avgGeodesicDistances();
 
              dual.addEdge( fh0.idx() , fh1.idx() , weight );
         }
@@ -255,7 +257,7 @@ void MainWindow::computeWeight( MyMesh *_mesh , double coefGeod ) {
 }
 
 
-double MainWindow::avgAngularDistance() {
+double MainWindow::avgAngularDistances() {
     double result = 0.0;
     for (std::map<std::pair<int , int> , double>::iterator it = angularDistances.begin() ; it != angularDistances.end() ; it++ ) {
         result += it->second;
@@ -312,7 +314,7 @@ void MainWindow::segmentationSimple(MyMesh* _mesh, int k) {
     computeWeight( _mesh , 1 );
     nbStepsDone++;
 
-    //dual.displayGraph();
+    dual.displayGraph();
 
     QVector<int> REPs = {3, 135};
     int tmp_k = REPs.size();
@@ -400,6 +402,8 @@ void MainWindow::on_pushButton_chargement_clicked()
 
     // chargement du fichier .obj dans la variable globale "mesh"
     OpenMesh::IO::read_mesh(mesh, fileName.toUtf8().constData());
+
+    mesh.update_normals();
 
     // initialisation des couleurs et épaisseurs (sommets et arêtes) du mesh
     resetAllColorsAndThickness(&mesh);

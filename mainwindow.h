@@ -56,7 +56,7 @@ public:
     void computeWeight( MyMesh *_mesh , double coefGeod );
     void segmentationSimple(MyMesh* _mesh, int k);
 
-    double avgAngularDistance();
+    double avgAngularDistances();
     double avgGeodesicDistances();
 
     void displayGeodesicDistances();
