@@ -54,6 +54,7 @@ public:
     void computeGeodesicDistances( MyMesh *_mesh);
     void computeAngularDistances( MyMesh *_mesh );
     void computeWeight( MyMesh *_mesh , double coefGeod );
+    void computeDirectDistances( MyMesh *_mesh );
     void segmentationSimple(MyMesh* _mesh, int k);
 
     double avgAngularDistances();
@@ -61,6 +62,7 @@ public:
 
     void displayGeodesicDistances();
     void displayAngularDistances();
+    void displayDirectDistances();
 
     double dijkstraDual(int v1, int v2);
     void dijkstraByREP(MyMesh *_mesh, int IdFaceREP, int k);
@@ -76,6 +78,7 @@ private:
     MyMesh mesh;
     std::map<pair<int, int>, double> angularDistances;
     std::map<pair<int, int>, double> geodesicDistances;
+    std::map<pair<int, int>, double> directDistances;
     Graph dual;
     Ui::MainWindow *ui;
     int nbDijkstraDone = 0;

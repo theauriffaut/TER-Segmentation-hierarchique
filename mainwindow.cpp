@@ -293,6 +293,36 @@ void MainWindow::displayAngularDistances() {
     }
 }
 
+void MainWindow::computeDirectDistances(MyMesh *_mesh) {
+     for ( MyMesh::FaceIter curFace = _mesh->faces_begin( ) ; curFace != _mesh->faces_end( ) ; curFace++ ) {
+         for ( MyMesh::FaceIter curFace2 = _mesh->faces_begin( ) ; curFace2 != _mesh->faces_end( ) ; curFace2++ ) {
+             FaceHandle fh0 = *curFace;
+             FaceHandle fh1 = *curFace2;
+             if ( fh0.idx( ) == fh1.idx( ) ||
+                  directDistances.find( std::make_pair( fh0.idx() , fh1.idx() ) ) != directDistances.end() ||
+                  directDistances.find( std::make_pair( fh1.idx() , fh0.idx() ) ) != directDistances.end() ) continue;
+
+             MyMesh::Point center0 = faceGravityCenter( _mesh , fh0.idx( ) );
+             MyMesh::Point center1 = faceGravityCenter( _mesh , fh1.idx() );
+
+             VectorT<float, 3> vector = center1 - center0;
+             double length = abs( vector.norm() );
+
+             directDistances[std::make_pair(  fh0.idx() , fh1.idx() )] = length;
+         }
+     }
+}
+
+void MainWindow::displayDirectDistances() {
+    for (std::map<std::pair<int , int> , double>::iterator it = directDistances.begin() ; it != directDistances.end() ; it++ ) {
+        std::pair<int, int> key = it->first;
+        float value = it->second;
+
+        myqDebug() << "La distance directe entre la face " << std::get<0>(key)
+                  << " et la face " << std::get<1>(key) << " est de " << value << ".";
+    }
+}
+
 void MainWindow::segmentationSimple(MyMesh* _mesh, int k) {
 
 
@@ -305,6 +335,10 @@ void MainWindow::segmentationSimple(MyMesh* _mesh, int k) {
 
     displayMesh(_mesh);
     _mesh->add_property(dist, "dist");
+
+    //computeDirectDistances(_mesh);
+    //qDebug() << "Ok";
+    //displayDirectDistances();
 
     computeAngularDistances( _mesh );
     computeGeodesicDistances( _mesh );
