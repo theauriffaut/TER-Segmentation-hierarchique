@@ -53,7 +53,12 @@ public:
     double geodesicDistance( MyMesh *_mesh , int edgeID);
     void computeGeodesicDistances( MyMesh *_mesh);
     void computeAngularDistances( MyMesh *_mesh );
+<<<<<<< HEAD
     void computeWeight( MyMesh *_mesh , double coefGeod, int patch );
+=======
+    void computeWeight( MyMesh *_mesh , double coefGeod );
+    void computeDirectDistances( MyMesh *_mesh );
+>>>>>>> Distance directe entre toutes les faces
     void segmentationSimple(MyMesh* _mesh, int k);
 
     double avgAngularDistances();
@@ -61,6 +66,7 @@ public:
 
     void displayGeodesicDistances();
     void displayAngularDistances();
+    void displayDirectDistances();
 
     double dijkstraDual(int v1, int v2);
     void dijkstraByREP(MyMesh *_mesh, int IdFaceREP, int k);
@@ -85,7 +91,10 @@ private:
     std::map<pair<int, int>, double> angularDistances;
     std::map<pair<int, int>, double> geodesicDistances;
     std::map<pair<int, int>, double> directDistances;
+<<<<<<< HEAD
     QVector<MyMesh::Color> colors;
+=======
+>>>>>>> Distance directe entre toutes les faces
     Graph dual;
     Ui::MainWindow *ui;
     int nbDijkstraDone = 0;

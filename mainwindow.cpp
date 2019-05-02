@@ -312,6 +312,7 @@ void MainWindow::displayAngularDistances() {
     }
 }
 
+<<<<<<< HEAD
 void MainWindow::computeDirectDistances(MyMesh *_mesh, int patch) {
     int progress = 0;
     ui->progressChoix->setRange(0, patches[patch].size());
@@ -321,6 +322,13 @@ void MainWindow::computeDirectDistances(MyMesh *_mesh, int patch) {
          for(auto curFace2 : patches[patch]) {
              FaceHandle fh0 = _mesh->face_handle(curFace);
              FaceHandle fh1 = _mesh->face_handle(curFace2);
+=======
+void MainWindow::computeDirectDistances(MyMesh *_mesh) {
+     for ( MyMesh::FaceIter curFace = _mesh->faces_begin( ) ; curFace != _mesh->faces_end( ) ; curFace++ ) {
+         for ( MyMesh::FaceIter curFace2 = _mesh->faces_begin( ) ; curFace2 != _mesh->faces_end( ) ; curFace2++ ) {
+             FaceHandle fh0 = *curFace;
+             FaceHandle fh1 = *curFace2;
+>>>>>>> Distance directe entre toutes les faces
              if ( fh0.idx( ) == fh1.idx( ) ||
                   directDistances.find( std::make_pair( fh0.idx() , fh1.idx() ) ) != directDistances.end() ||
                   directDistances.find( std::make_pair( fh1.idx() , fh0.idx() ) ) != directDistances.end() ) continue;
@@ -333,8 +341,11 @@ void MainWindow::computeDirectDistances(MyMesh *_mesh, int patch) {
 
              directDistances[std::make_pair(  fh0.idx() , fh1.idx() )] = length;
          }
+<<<<<<< HEAD
          progress++;
          ui->progressChoix->setValue(progress);
+=======
+>>>>>>> Distance directe entre toutes les faces
      }
 }
 
@@ -348,6 +359,7 @@ void MainWindow::displayDirectDistances() {
     }
 }
 
+<<<<<<< HEAD
 void MainWindow::computeProbabilities(MyMesh *_mesh, QVector<int> IdReps, int k) {
     int progress = 0;
     ui->progressProba->setRange(0, patches[k].size());
@@ -368,6 +380,8 @@ void MainWindow::computeProbabilities(MyMesh *_mesh, QVector<int> IdReps, int k)
     }
 }
 
+=======
+>>>>>>> Distance directe entre toutes les faces
 void MainWindow::segmentationSimple(MyMesh* _mesh, int k) {
 
 
@@ -397,6 +411,10 @@ void MainWindow::segmentationSimple(MyMesh* _mesh, int k) {
         _mesh->property(patchId, *curFace) = 0;
         patches[0].push_back(curFace->idx());
     }
+
+    //computeDirectDistances(_mesh);
+    //qDebug() << "Ok";
+    //displayDirectDistances();
 
     computeAngularDistances( _mesh );
     computeGeodesicDistances( _mesh );
