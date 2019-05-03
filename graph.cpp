@@ -55,3 +55,8 @@ GraphVertex &Graph::operator[](int i)
 {
     return m_vertices[i];
 }
+
+void Graph::clear()
+{
+    m_vertices.clear();
+}

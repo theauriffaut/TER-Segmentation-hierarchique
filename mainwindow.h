@@ -53,7 +53,7 @@ public:
     double geodesicDistance( MyMesh *_mesh , int edgeID);
     void computeGeodesicDistances( MyMesh *_mesh);
     void computeAngularDistances( MyMesh *_mesh );
-    void computeWeight( MyMesh *_mesh , double coefGeod );
+    void computeWeight( MyMesh *_mesh , double coefGeod, int patch );
     void segmentationSimple(MyMesh* _mesh, int k);
 
     double avgAngularDistances();
@@ -66,16 +66,25 @@ public:
     void dijkstraByREP(MyMesh *_mesh, int IdFaceREP, int k);
 
     FPropHandleT<QVector<double>> dist;
+    FPropHandleT<int> patchId;
 
 
+
+    void computeProb();
+    void computeDirectDistances(MyMesh *_mesh, int patch);
+    void displayDirectDistances();
 private slots:
     void on_pushButton_chargement_clicked();
     void on_pushButton_segmentation_clicked();
 
 private:
     MyMesh mesh;
+    QVector<QVector<int>> patches;
+    QVector<int> ambiguousFaces;
+    unsigned int currentId = 0;
     std::map<pair<int, int>, double> angularDistances;
     std::map<pair<int, int>, double> geodesicDistances;
+    std::map<pair<int, int>, double> directDistances;
     Graph dual;
     Ui::MainWindow *ui;
     int nbDijkstraDone = 0;

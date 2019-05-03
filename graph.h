@@ -19,6 +19,8 @@ public:
 
     GraphVertex &operator[](int i);
 
+    void clear();
+
 private:
     std::vector<GraphVertex> m_vertices;
     int m_nbEdges = 0;
