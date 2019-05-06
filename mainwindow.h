@@ -68,11 +68,11 @@ public:
     FPropHandleT<QVector<double>> dist;
     FPropHandleT<int> patchId;
 
+    FPropHandleT<QVector<double>> PB;
 
-
-    void computeProb();
     void computeDirectDistances(MyMesh *_mesh, int patch);
     void displayDirectDistances();
+    void computeProbabilities(MyMesh *_mesh, QVector<int> IdReps, int k);
 private slots:
     void on_pushButton_chargement_clicked();
     void on_pushButton_segmentation_clicked();
