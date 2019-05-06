@@ -85,6 +85,7 @@ private:
     std::map<pair<int, int>, double> angularDistances;
     std::map<pair<int, int>, double> geodesicDistances;
     std::map<pair<int, int>, double> directDistances;
+    QVector<MyMesh::Color> colors;
     Graph dual;
     Ui::MainWindow *ui;
     int nbDijkstraDone = 0;

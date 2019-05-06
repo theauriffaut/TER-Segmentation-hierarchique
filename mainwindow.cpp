@@ -35,6 +35,7 @@ double MainWindow::dijkstraDual(int v1, int v2) {
   QMap<int, std::map<int, double>> G;
   for(int i = 0; i < NbNodes; i++) {
       G.insert(dual[i].getId(), dual[i].m_adjacencyList);
+
   }
 
   while (!Q.empty()) {
@@ -60,6 +61,7 @@ double MainWindow::dijkstraDual(int v1, int v2) {
 
   if(Parents[v2] == -1){
       if(v2 != StartNode) {
+        return DBL_MAX;
         qDebug() << "Erreur : Chemin impossible entre le vertex" << v1 << "et le vertex" << v2 << "car composante non connexe";
       } else {
         return 0;
@@ -71,7 +73,10 @@ double MainWindow::dijkstraDual(int v1, int v2) {
     chemin.push_back(v2);
     //qDebug() << "Vertex depart :" << v2;
     for (int p = Parents[v2]; p != -1; p = Parents[p]){
-      //qDebug() << " <- " << p;
+      qDebug() << " <- " << p << Distances[p] << Parents[p];
+      if(p == 0 && Parents[p] == 0){
+          return Distances[v2];
+      }
       chemin.push_back(p);
     }
 
@@ -344,7 +349,12 @@ void MainWindow::displayDirectDistances() {
 
 void MainWindow::segmentationSimple(MyMesh* _mesh, int k) {
 
+    colors = { MyMesh::Color(102,0,255), MyMesh::Color(254,231,240), MyMesh::Color(212,115,212), MyMesh::Color(255,0,255), MyMesh::Color(121,248,248), MyMesh::Color(223,109,20),
+               MyMesh::Color(115,8,0), MyMesh::Color(1,215,88), MyMesh::Color(240,195,0), MyMesh::Color(255,9,33), MyMesh::Color(231,62,1), MyMesh::Color(4,139,154), MyMesh::Color(135,233,144),
+               MyMesh::Color(63,34,4), MyMesh::Color(49,140,231) };
+
     patches = QVector<QVector<int>>(k);
+    currentId = 0;
 
     ui->progressTotal->setValue(0);
     ui->progressColor->setValue(0);
@@ -362,16 +372,12 @@ void MainWindow::segmentationSimple(MyMesh* _mesh, int k) {
         patches[0].push_back(curFace->idx());
     }
 
-    QVector<MyMesh::Color> colors;
-    qsrand(time(nullptr));
-    for(int i = 0; i < k; i++) {
-       colors.push_back(MyMesh::Color(qrand()%256,qrand()%256,qrand()%256));
-    }
-
     computeAngularDistances( _mesh );
     computeGeodesicDistances( _mesh );
-    //displayAngularDistances();
-    //displayGeodesicDistances();
+
+    ui->progressTotal->setRange(0, (k-1)*10);
+    ui->progressTotal->setFormat("%p%");
+    ui->progressTotal->setValue(nbStepsDone);
 
     for(int i = 1; i < k; i++){
 
@@ -381,27 +387,33 @@ void MainWindow::segmentationSimple(MyMesh* _mesh, int k) {
                 chosenPatch = i;
             }
         }
+        nbStepsDone++;
+        ui->progressTotal->setValue(nbStepsDone);
+
         dual.clear();
         computeWeight( _mesh , 1 , chosenPatch);
+        nbStepsDone++;
+        ui->progressTotal->setValue(nbStepsDone);
+
         directDistances.clear();
         computeDirectDistances(_mesh, chosenPatch);
 
-        double max = 0;
+
         std::pair<int,int> reps;
+        double max = 0;
         for(auto it : directDistances){
             if(it.second > max){
                 max = it.second;
                 reps = it.first;
             }
         }
+
         nbStepsDone++;
+        ui->progressTotal->setValue(nbStepsDone);
 
         //dual.displayGraph();
 
         QVector<int> REPs = {reps.first, reps.second};
-        ui->progressTotal->setRange(0, 2+2);
-        ui->progressTotal->setFormat("%p%");
-        ui->progressTotal->setValue(nbStepsDone);
 
         ui->progressDijkstra->setRange(0, patches[chosenPatch].size());
         ui->progressDijkstra->setFormat("%p%");
@@ -410,6 +422,8 @@ void MainWindow::segmentationSimple(MyMesh* _mesh, int k) {
         for(int i = 0; i < patches[chosenPatch].size(); i++){
             _mesh->property(dist, _mesh->face_handle(patches[chosenPatch][i])).clear();
         }
+        nbStepsDone++;
+        ui->progressTotal->setValue(nbStepsDone);
 
         for(int i = 0; i < 2; i++) {
             dijkstraByREP(_mesh, REPs[i], chosenPatch);
@@ -426,6 +440,7 @@ void MainWindow::segmentationSimple(MyMesh* _mesh, int k) {
 
         currentId++;
 
+
         double distMAX = dijkstraDual(REPs[0], REPs[1]);
 
         ambiguousFaces.clear();
@@ -433,11 +448,11 @@ void MainWindow::segmentationSimple(MyMesh* _mesh, int k) {
         QVector<int>::iterator it = patches[chosenPatch].begin();
         while(it != patches[chosenPatch].end()){
             bool alreadyColored = false;
-            if(_mesh->property(dist, _mesh->face_handle(*it))[0] <= distMAX/2 + 5) {
+            if(_mesh->property(dist, _mesh->face_handle(*it))[0] <= distMAX/2) {
                 alreadyColored = true;
             }
             if(!alreadyColored){
-                if(_mesh->property(dist, _mesh->face_handle(*it))[1] <= distMAX/2 + 5){
+                if(_mesh->property(dist, _mesh->face_handle(*it))[1] <= distMAX/2){
                     qDebug() << *it << "Appartient au patch " << currentId;
                     _mesh->property(patchId, _mesh->face_handle(*it)) = currentId;
                     patches[currentId].push_back(*it);
@@ -450,7 +465,7 @@ void MainWindow::segmentationSimple(MyMesh* _mesh, int k) {
                     patches[chosenPatch].removeOne(*it);
                 }
             } else {
-                if(_mesh->property(dist, _mesh->face_handle(*it))[1] <= distMAX/2 + 5){
+                if(_mesh->property(dist, _mesh->face_handle(*it))[1] <= distMAX/2){
                     qDebug() << *it << "Face ambigue ";
                     _mesh->property(patchId, _mesh->face_handle(*it)) = -1;
                     ambiguousFaces.push_back(*it);
@@ -461,15 +476,18 @@ void MainWindow::segmentationSimple(MyMesh* _mesh, int k) {
                 }
             }
         }
+        nbStepsDone++;
+        ui->progressTotal->setValue(nbStepsDone);
 
-        int biggest = 0;
-        for(int i = 0; i < patches.size(); i++){
-            if(patches[biggest].size() < patches[i].size()){
-                biggest = i;
-            }
+        int biggest = chosenPatch;
+        if(patches[chosenPatch].size() < patches[currentId].size()){
+            biggest = currentId;
         }
+        nbStepsDone++;
+        ui->progressTotal->setValue(nbStepsDone);
 
         for(int i = 0; i < ambiguousFaces.size(); i++){
+            _mesh->property(patchId, _mesh->face_handle(ambiguousFaces[i])) = biggest;
             patches[biggest].push_back(ambiguousFaces[i]);
         }
 
@@ -491,10 +509,11 @@ void MainWindow::segmentationSimple(MyMesh* _mesh, int k) {
             nbFacesColored++;
             ui->progressColor->setValue(nbFacesColored);
         }
-
+        nbStepsDone++;
+        ui->progressTotal->setValue(nbStepsDone);
         qDebug() << nb;
         for(int i = 0; i < 2; i++) {
-            _mesh->set_color(_mesh->face_handle(REPs[i]), MyMesh::Color(0,255,0));
+            //_mesh->set_color(_mesh->face_handle(REPs[i]), MyMesh::Color(0,255,0));
         }
 
         qDebug() << patches[chosenPatch].size();
