@@ -61,10 +61,10 @@
        <item>
         <widget class="QSpinBox" name="spinBox_segmentation">
          <property name="minimum">
-          <number>1</number>
+          <number>2</number>
          </property>
          <property name="maximum">
-          <number>10</number>
+          <number>20</number>
          </property>
         </widget>
        </item>
@@ -98,6 +98,20 @@
        </item>
        <item>
         <widget class="QProgressBar" name="progressDual">
+         <property name="value">
+          <number>0</number>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QLabel" name="label_5">
+         <property name="text">
+          <string>Choix faces représentantes</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QProgressBar" name="progressChoix">
          <property name="value">
           <number>0</number>
          </property>

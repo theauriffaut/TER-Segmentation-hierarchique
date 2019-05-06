@@ -16,18 +16,25 @@ double MainWindow::dijkstraDual(int v1, int v2) {
 
   int StartNode = v1;
 
-  QVector<double> Distances(NbNodes, DBL_MAX);
+  QMap<int, double> Distances;
+
+  for(int i = 0; i < NbNodes; i++) {
+      Distances.insert(dual[i].getId(), DBL_MAX);
+  }
 
   Distances[StartNode] = 0;
 
-  QVector<int> Parents(NbNodes, -1);
+  QMap<int, int> Parents;
+  for(int i = 0; i < NbNodes; i++) {
+      Parents.insert(dual[i].getId(), -1);
+  }
 
   priority_queue<QPair<int, double>, QVector<QPair<int, double>>, decltype(compWeight)> Q(compWeight);
   Q.push(QPair<int, double>(StartNode, 0));
 
-  QVector<std::map<int, double>> G(NbNodes);
+  QMap<int, std::map<int, double>> G;
   for(int i = 0; i < NbNodes; i++) {
-      G[dual[i].getId()] = dual[i].m_adjacencyList;
+      G.insert(dual[i].getId(), dual[i].m_adjacencyList);
   }
 
   while (!Q.empty()) {
@@ -53,7 +60,8 @@ double MainWindow::dijkstraDual(int v1, int v2) {
 
   if(Parents[v2] == -1){
       if(v2 != StartNode) {
-        qDebug() << "Erreur : Chemin impossible entre le vertex" << v1 << "et le vertex" << v2 << "car composante non connexe";
+        return DBL_MAX;
+         qDebug() << "Erreur : Chemin impossible entre le vertex" << v1 << "et le vertex" << v2 << "car composante non connexe";
       } else {
         return 0;
       }
@@ -75,8 +83,8 @@ double MainWindow::dijkstraDual(int v1, int v2) {
 }
 
 void MainWindow::dijkstraByREP(MyMesh* _mesh, int IdFaceREP, int k) {
-    for(MyMesh::FaceIter curFace = _mesh->faces_begin(); curFace != _mesh->faces_end(); curFace++) {
-        _mesh->property(dist, *curFace).push_back(dijkstraDual(IdFaceREP, (*curFace).idx()));
+    for(int i = 0; i < patches[k].size(); i++){
+        _mesh->property(dist, _mesh->face_handle(patches[k][i])).push_back(dijkstraDual(IdFaceREP, patches[k][i]));
         nbDijkstraDone++;
         ui->progressDijkstra->setValue(nbDijkstraDone);
     }
@@ -213,9 +221,9 @@ void MainWindow::computeGeodesicDistances( MyMesh *_mesh ) {
     }
 }
 
-void MainWindow::computeWeight( MyMesh *_mesh , double coefGeod ) {
+void MainWindow::computeWeight( MyMesh *_mesh , double coefGeod , int patch) {
     int progress = 0;
-    ui->progressDual->setRange(0, _mesh->n_faces());
+    ui->progressDual->setRange(0, patches[patch].size());
     ui->progressDual->setFormat("%p%");
     ui->progressDual->setValue(progress);
 
@@ -223,36 +231,38 @@ void MainWindow::computeWeight( MyMesh *_mesh , double coefGeod ) {
     double avgAngular = avgAngularDistances();
 
     for ( MyMesh::FaceIter curFace = _mesh->faces_begin( ) ; curFace != _mesh->faces_end( ) ; curFace++ ) {
-        for ( MyMesh::FaceEdgeIter curEdge = _mesh->fe_iter( *curFace ) ; curEdge.is_valid() ; curEdge++ ) {
+        if(_mesh->property(patchId, *curFace) == patch){
+            for ( MyMesh::FaceEdgeIter curEdge = _mesh->fe_iter( *curFace ) ; curEdge.is_valid() ; curEdge++ ) {
 
-            FaceHandle fh0 = *curFace;
-            EdgeHandle eh = *curEdge;
-            HalfedgeHandle heh0 = _mesh->halfedge_handle( eh , 0 );
-            HalfedgeHandle heh1 = _mesh->halfedge_handle( eh , 1 );
+                FaceHandle fh0 = *curFace;
+                EdgeHandle eh = *curEdge;
+                HalfedgeHandle heh0 = _mesh->halfedge_handle( eh , 0 );
+                HalfedgeHandle heh1 = _mesh->halfedge_handle( eh , 1 );
 
-            FaceHandle fh1 = _mesh->face_handle( heh0 );
-            if( fh0.idx() == fh1.idx() ) fh1 = _mesh->face_handle( heh1 );
+                FaceHandle fh1 = _mesh->face_handle( heh0 );
+                if( fh0.idx() == fh1.idx() ) fh1 = _mesh->face_handle( heh1 );
 
-            //Si la face est en bordure, on passe a l'arête voisine suivante si il n'y pas de face opposée liée
-            if ( fh1.idx ( ) > _mesh->n_faces ( ) )
-                continue;
+                //Si la face est en bordure, on passe a l'arête voisine suivante si il n'y pas de face opposée liée
+                if ( fh1.idx () > _mesh->n_faces () || _mesh->property(patchId, fh1) != patch){
+                    continue;
+                }
 
-            std::pair<int , int> key = std::make_pair( fh0.idx() , fh1.idx() );
-            double geodesicDistance = geodesicDistances[key];
-            double angularDistance = angularDistances[key];
+                std::pair<int , int> key = std::make_pair( fh0.idx() , fh1.idx() );
+                double geodesicDistance = geodesicDistances[key];
+                double angularDistance = angularDistances[key];
 
-            double weight = ( coefGeod * ( geodesicDistance / avgGeodesic ) ) +
-                            ( ( 1 - coefGeod ) * ( angularDistance / avgAngular ) );
+                double weight = ( coefGeod * ( geodesicDistance / avgGeodesic ) ) +
+                                ( ( 1 - coefGeod ) * ( angularDistance / avgAngular ) );
 
-            //qDebug() << weight;
-             //Pour le moment
-             //double weight = geodesicDistance / avgGeodesicDistances();
+                //qDebug() << weight;
+                 //Pour le moment
+                 //double weight = geodesicDistance / avgGeodesicDistances();
 
-             dual.addEdge( fh0.idx() , fh1.idx() , weight );
+                 dual.addEdge( fh0.idx() , fh1.idx() , weight );
+            }
+            progress++;
+            ui->progressDual->setValue(progress);
         }
-        progress++;
-        ui->progressDual->setValue(progress);
-
     }
 }
 
@@ -293,8 +303,49 @@ void MainWindow::displayAngularDistances() {
     }
 }
 
+void MainWindow::computeProb(){
+
+}
+
+void MainWindow::computeDirectDistances(MyMesh *_mesh, int patch) {
+    int progress = 0;
+    ui->progressChoix->setRange(0, patches[patch].size());
+    ui->progressChoix->setFormat("%p%");
+    ui->progressChoix->setValue(progress);
+     for(auto curFace : patches[patch]) {
+         for(auto curFace2 : patches[patch]) {
+             FaceHandle fh0 = _mesh->face_handle(curFace);
+             FaceHandle fh1 = _mesh->face_handle(curFace2);
+             if ( fh0.idx( ) == fh1.idx( ) ||
+                  directDistances.find( std::make_pair( fh0.idx() , fh1.idx() ) ) != directDistances.end() ||
+                  directDistances.find( std::make_pair( fh1.idx() , fh0.idx() ) ) != directDistances.end() ) continue;
+
+             MyMesh::Point center0 = faceGravityCenter( _mesh , fh0.idx( ) );
+             MyMesh::Point center1 = faceGravityCenter( _mesh , fh1.idx() );
+
+             VectorT<float, 3> vector = center1 - center0;
+             double length = abs( vector.norm() );
+
+             directDistances[std::make_pair(  fh0.idx() , fh1.idx() )] = length;
+         }
+         progress++;
+         ui->progressChoix->setValue(progress);
+     }
+}
+
+void MainWindow::displayDirectDistances() {
+    for (std::map<std::pair<int , int> , double>::iterator it = directDistances.begin() ; it != directDistances.end() ; it++ ) {
+        std::pair<int, int> key = it->first;
+        float value = it->second;
+
+        myqDebug() << "La distance directe entre la face " << std::get<0>(key)
+                  << " et la face " << std::get<1>(key) << " est de " << value << ".";
+    }
+}
+
 void MainWindow::segmentationSimple(MyMesh* _mesh, int k) {
 
+    patches = QVector<QVector<int>>(k);
 
     ui->progressTotal->setValue(0);
     ui->progressColor->setValue(0);
@@ -304,74 +355,154 @@ void MainWindow::segmentationSimple(MyMesh* _mesh, int k) {
     int nbStepsDone = 0;
 
     displayMesh(_mesh);
-    _mesh->add_property(dist, "dist");
+    _mesh->add_property(dist);
+    _mesh->add_property(patchId);
+
+    for ( MyMesh::FaceIter curFace = _mesh->faces_begin( ) ; curFace != _mesh->faces_end( ) ; curFace++ ) {
+        _mesh->property(patchId, *curFace) = 0;
+        patches[0].push_back(curFace->idx());
+    }
+
+    QVector<MyMesh::Color> colors;
+    qsrand(time(nullptr));
+    for(int i = 0; i < k; i++) {
+       colors.push_back(MyMesh::Color(qrand()%256,qrand()%256,qrand()%256));
+    }
 
     computeAngularDistances( _mesh );
     computeGeodesicDistances( _mesh );
     //displayAngularDistances();
     //displayGeodesicDistances();
 
-    computeWeight( _mesh , 1 );
-    nbStepsDone++;
+    for(int i = 1; i < k; i++){
 
-    dual.displayGraph();
-
-    QVector<int> REPs = {3, 135};
-    int tmp_k = REPs.size();
-    ui->progressTotal->setRange(0, tmp_k+2);
-    ui->progressTotal->setFormat("%p%");
-    ui->progressTotal->setValue(nbStepsDone);
-
-    ui->progressDijkstra->setRange(0, _mesh->n_faces());
-    ui->progressDijkstra->setFormat("%p%");
-    ui->progressDijkstra->setValue(nbDijkstraDone);
-
-    for(int i = 0; i < tmp_k; i++) {
-        dijkstraByREP(_mesh, REPs[i], i);
-        nbStepsDone++;
-        ui->progressTotal->setValue(nbStepsDone);
-        nbDijkstraDone = 0;
-    }
-
-    int nbFacesColored = 0;
-    ui->progressColor->setRange(0, _mesh->n_faces());
-    ui->progressColor->setFormat("%p%");
-    ui->progressColor->setValue(nbFacesColored);
-
-    QVector<MyMesh::Color> colors;
-    qsrand(time(nullptr));
-    for(int i = 0; i < tmp_k; i++) {
-       colors.push_back(MyMesh::Color(qrand()%256,qrand()%256,qrand()%256));
-    }
-
-    double distMAX = dijkstraDual(3, 135);
-    for(MyMesh::FaceIter curFace = _mesh->faces_begin(); curFace != _mesh->faces_end(); curFace++) {
-        bool alreadyColored = false;
-        for(int i = 0; i < tmp_k; i++) {
-            if(!alreadyColored) {
-                if(_mesh->property(dist, *curFace)[i] <= distMAX/2+10) {
-                    _mesh->set_color(*curFace, colors[i]);
-                    alreadyColored = true;
-                } else {
-                    _mesh->set_color(*curFace, MyMesh::Color(255,0,0));
-                }
-            } else if(_mesh->property(dist, *curFace)[i] <= distMAX/2+10) {
-                _mesh->set_color(*curFace, MyMesh::Color(255,0,0));
+        int chosenPatch = 0;
+        for(int i = 0; i < patches.size(); i++){
+            if(patches[chosenPatch].size() < patches[i].size()){
+                chosenPatch = i;
             }
         }
-        if(!alreadyColored){
-            _mesh->set_color(*curFace, MyMesh::Color(255,0,0));
-        }
-        nbFacesColored++;
-        ui->progressColor->setValue(nbFacesColored);
-    }
-    nbStepsDone++;
-    ui->progressTotal->setValue(nbStepsDone);
+        dual.clear();
+        computeWeight( _mesh , 1 , chosenPatch);
+        directDistances.clear();
+        computeDirectDistances(_mesh, chosenPatch);
 
-    for(int i = 0; i < tmp_k; i++) {
-        _mesh->set_color(_mesh->face_handle(REPs[i]), MyMesh::Color(0,255,0));
+        double max = 0;
+        std::pair<int,int> reps;
+        for(auto it : directDistances){
+            if(it.second > max){
+                max = it.second;
+                reps = it.first;
+            }
+        }
+        nbStepsDone++;
+
+        //dual.displayGraph();
+
+        QVector<int> REPs = {reps.first, reps.second};
+        ui->progressTotal->setRange(0, 2+2);
+        ui->progressTotal->setFormat("%p%");
+        ui->progressTotal->setValue(nbStepsDone);
+
+        ui->progressDijkstra->setRange(0, patches[chosenPatch].size());
+        ui->progressDijkstra->setFormat("%p%");
+        ui->progressDijkstra->setValue(nbDijkstraDone);
+
+        for(int i = 0; i < patches[chosenPatch].size(); i++){
+            _mesh->property(dist, _mesh->face_handle(patches[chosenPatch][i])).clear();
+        }
+
+        for(int i = 0; i < 2; i++) {
+            dijkstraByREP(_mesh, REPs[i], chosenPatch);
+            nbStepsDone++;
+            ui->progressTotal->setValue(nbStepsDone);
+            nbDijkstraDone = 0;
+        }
+
+        int nbFacesColored = 0;
+        ui->progressColor->setRange(0, _mesh->n_faces());
+        ui->progressColor->setFormat("%p%");
+        ui->progressColor->setValue(nbFacesColored);
+
+
+        currentId++;
+
+        double distMAX = dijkstraDual(REPs[0], REPs[1]);
+
+        ambiguousFaces.clear();
+
+        QVector<int>::iterator it = patches[chosenPatch].begin();
+        while(it != patches[chosenPatch].end()){
+            bool alreadyColored = false;
+            if(_mesh->property(dist, _mesh->face_handle(*it))[0] <= distMAX/2 + 5) {
+                alreadyColored = true;
+            }
+            if(!alreadyColored){
+                if(_mesh->property(dist, _mesh->face_handle(*it))[1] <= distMAX/2 + 5){
+                    qDebug() << *it << "Appartient au patch " << currentId;
+                    _mesh->property(patchId, _mesh->face_handle(*it)) = currentId;
+                    patches[currentId].push_back(*it);
+                    patches[chosenPatch].removeOne(*it);
+                    alreadyColored = true;
+                } else {
+                    qDebug() << *it << "Appartient à personne ";
+                    _mesh->property(patchId, _mesh->face_handle(*it)) = -1;
+                    ambiguousFaces.push_back(*it);
+                    patches[chosenPatch].removeOne(*it);
+                }
+            } else {
+                if(_mesh->property(dist, _mesh->face_handle(*it))[1] <= distMAX/2 + 5){
+                    qDebug() << *it << "Face ambigue ";
+                    _mesh->property(patchId, _mesh->face_handle(*it)) = -1;
+                    ambiguousFaces.push_back(*it);
+                    patches[chosenPatch].removeOne(*it);
+                } else {
+                    qDebug() << *it << "Appartient au patch " << chosenPatch;
+                    it++;
+                }
+            }
+        }
+
+        int biggest = chosenPatch;
+        if(patches[chosenPatch].size() < patches[currentId].size()){
+            biggest = currentId;
+        }
+
+
+        for(int i = 0; i < ambiguousFaces.size(); i++){
+            _mesh->property(patchId, _mesh->face_handle(ambiguousFaces[i])) = biggest;
+            patches[biggest].push_back(ambiguousFaces[i]);
+        }
+
+        nbStepsDone++;
+        ui->progressTotal->setValue(nbStepsDone);
+        int nb =0;
+        for (MyMesh::FaceIter curFace = _mesh->faces_begin(); curFace != _mesh->faces_end(); curFace++)
+        {
+            qDebug() << curFace->idx() << _mesh->property(patchId, *curFace);
+            if(_mesh->property(patchId, *curFace) == -1){
+                _mesh->set_color(*curFace, MyMesh::Color(255, 0, 0));
+                nb++;
+            } else if(_mesh->property(patchId, *curFace) == -2){
+                _mesh->set_color(*curFace, MyMesh::Color(255, 255, 255));
+                nb++;
+            } else {
+                _mesh->set_color(*curFace, colors[_mesh->property(patchId, *curFace)]);
+            }
+            nbFacesColored++;
+            ui->progressColor->setValue(nbFacesColored);
+        }
+
+        qDebug() << nb;
+        for(int i = 0; i < 2; i++) {
+            _mesh->set_color(_mesh->face_handle(REPs[i]), MyMesh::Color(0,255,0));
+        }
+
+        qDebug() << patches[chosenPatch].size();
+        qDebug() << patches[currentId].size();
+        qDebug() << nb+patches[chosenPatch].size()+patches[currentId].size();
+        displayMesh(_mesh);
     }
-    displayMesh(_mesh);
 
     //double dist = dijkstraDual(3, 135);
 
@@ -386,6 +517,8 @@ void MainWindow::segmentationSimple(MyMesh* _mesh, int k) {
     g.addEdge(1, 3, 10.0);
     g.addEdge(2, 10, 14.0);
     g.addEdge(200, 100, 0.1);*/
+
+
 }
 
 /* **** début de la partie boutons et IHM **** */
