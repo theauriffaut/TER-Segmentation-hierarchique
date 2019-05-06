@@ -349,6 +349,10 @@ void MainWindow::displayDirectDistances() {
 }
 
 void MainWindow::computeProbabilities(MyMesh *_mesh, QVector<int> IdReps, int k) {
+    int progress = 0;
+    ui->progressProba->setRange(0, patches[k].size());
+    ui->progressProba->setFormat("%p%");
+    ui->progressProba->setValue(progress);
     for(int i = 0; i < patches[k].size(); i++){
 
         QVector<double> distRep = _mesh->property(dist, _mesh->face_handle(patches[k][i]));
@@ -359,10 +363,14 @@ void MainWindow::computeProbabilities(MyMesh *_mesh, QVector<int> IdReps, int k)
 
         nbDijkstraDone++;
         ui->progressDijkstra->setValue(nbDijkstraDone);
+        progress++;
+        ui->progressProba->setValue(progress);
     }
 }
 
 void MainWindow::segmentationSimple(MyMesh* _mesh, int k) {
+
+
 
     colors = { MyMesh::Color(102,0,255), MyMesh::Color(254,231,240), MyMesh::Color(212,115,212), MyMesh::Color(255,0,255), MyMesh::Color(121,248,248), MyMesh::Color(223,109,20),
                MyMesh::Color(115,8,0), MyMesh::Color(1,215,88), MyMesh::Color(240,195,0), MyMesh::Color(255,9,33), MyMesh::Color(231,62,1), MyMesh::Color(4,139,154), MyMesh::Color(135,233,144),
@@ -375,6 +383,8 @@ void MainWindow::segmentationSimple(MyMesh* _mesh, int k) {
     ui->progressColor->setValue(0);
     ui->progressDual->setValue(0);
     ui->progressDijkstra->setValue(0);
+    ui->progressChoix->setValue(0);
+    ui->progressProba->setValue(0);
 
     int nbStepsDone = 0;
 
@@ -391,7 +401,7 @@ void MainWindow::segmentationSimple(MyMesh* _mesh, int k) {
     computeAngularDistances( _mesh );
     computeGeodesicDistances( _mesh );
 
-    ui->progressTotal->setRange(0, (k-1)*10);
+    ui->progressTotal->setRange(0, (k-1)*11);
     ui->progressTotal->setFormat("%p%");
     ui->progressTotal->setValue(nbStepsDone);
 
@@ -407,7 +417,7 @@ void MainWindow::segmentationSimple(MyMesh* _mesh, int k) {
         ui->progressTotal->setValue(nbStepsDone);
 
         dual.clear();
-        computeWeight( _mesh , 0.5 , chosenPatch);
+        computeWeight( _mesh , coefGeod , chosenPatch);
         nbStepsDone++;
         ui->progressTotal->setValue(nbStepsDone);
 
@@ -430,10 +440,6 @@ void MainWindow::segmentationSimple(MyMesh* _mesh, int k) {
         //dual.displayGraph();
 
         QVector<int> REPs = {reps.first, reps.second};
-
-        ui->progressTotal->setRange(0, 2+2);
-        ui->progressTotal->setFormat("%p%");
-        ui->progressTotal->setValue(nbStepsDone);
 
         ui->progressDijkstra->setRange(0, patches[chosenPatch].size());
         ui->progressDijkstra->setFormat("%p%");
@@ -480,11 +486,11 @@ void MainWindow::segmentationSimple(MyMesh* _mesh, int k) {
         while(it != patches[chosenPatch].end()){
             bool alreadyColored = false;
 
-            if(_mesh->property(PB, _mesh->face_handle(*it))[0] <= 0.5) {
+            if(_mesh->property(PB, _mesh->face_handle(*it))[0] >= minProba) {
                 alreadyColored = true;
             }
             if(!alreadyColored){
-                if(_mesh->property(PB, _mesh->face_handle(*it))[1] <= 0.5){
+                if(_mesh->property(PB, _mesh->face_handle(*it))[1] >= minProba){
                     qDebug() << *it << "Appartient au patch " << currentId;
                     _mesh->property(patchId, _mesh->face_handle(*it)) = currentId;
                     patches[currentId].push_back(*it);
@@ -497,7 +503,7 @@ void MainWindow::segmentationSimple(MyMesh* _mesh, int k) {
                     patches[chosenPatch].removeOne(*it);
                 }
             } else {
-                if(_mesh->property(PB, _mesh->face_handle(*it))[1] <= 0.5){
+                if(_mesh->property(PB, _mesh->face_handle(*it))[1] >= minProba){
                     qDebug() << *it << "Face ambigue ";
                     _mesh->property(patchId, _mesh->face_handle(*it)) = -1;
                     ambiguousFaces.push_back(*it);

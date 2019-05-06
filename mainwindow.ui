@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>632</width>
-    <height>408</height>
+    <height>423</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -126,6 +126,20 @@
        </item>
        <item>
         <widget class="QProgressBar" name="progressDijkstra">
+         <property name="value">
+          <number>0</number>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QLabel" name="label_6">
+         <property name="text">
+          <string>Probabilités</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QProgressBar" name="progressProba">
          <property name="value">
           <number>0</number>
          </property>

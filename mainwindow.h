@@ -89,6 +89,9 @@ private:
     Graph dual;
     Ui::MainWindow *ui;
     int nbDijkstraDone = 0;
+
+    const double coefGeod = 0.3;
+    const double minProba = 0.4;
 };
 
 #endif // MAINWINDOW_H
