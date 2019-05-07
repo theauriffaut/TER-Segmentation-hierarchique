@@ -313,6 +313,7 @@ void MainWindow::displayAngularDistances() {
 }
 
 <<<<<<< HEAD
+<<<<<<< HEAD
 void MainWindow::computeDirectDistances(MyMesh *_mesh, int patch) {
     int progress = 0;
     ui->progressChoix->setRange(0, patches[patch].size());
@@ -323,12 +324,17 @@ void MainWindow::computeDirectDistances(MyMesh *_mesh, int patch) {
              FaceHandle fh0 = _mesh->face_handle(curFace);
              FaceHandle fh1 = _mesh->face_handle(curFace2);
 =======
+=======
+>>>>>>> 62b55e2bd28e3793aa8c8216cd2beeb978601e16
 void MainWindow::computeDirectDistances(MyMesh *_mesh) {
      for ( MyMesh::FaceIter curFace = _mesh->faces_begin( ) ; curFace != _mesh->faces_end( ) ; curFace++ ) {
          for ( MyMesh::FaceIter curFace2 = _mesh->faces_begin( ) ; curFace2 != _mesh->faces_end( ) ; curFace2++ ) {
              FaceHandle fh0 = *curFace;
              FaceHandle fh1 = *curFace2;
+<<<<<<< HEAD
 >>>>>>> Distance directe entre toutes les faces
+=======
+>>>>>>> 62b55e2bd28e3793aa8c8216cd2beeb978601e16
              if ( fh0.idx( ) == fh1.idx( ) ||
                   directDistances.find( std::make_pair( fh0.idx() , fh1.idx() ) ) != directDistances.end() ||
                   directDistances.find( std::make_pair( fh1.idx() , fh0.idx() ) ) != directDistances.end() ) continue;
@@ -342,10 +348,13 @@ void MainWindow::computeDirectDistances(MyMesh *_mesh) {
              directDistances[std::make_pair(  fh0.idx() , fh1.idx() )] = length;
          }
 <<<<<<< HEAD
+<<<<<<< HEAD
          progress++;
          ui->progressChoix->setValue(progress);
 =======
 >>>>>>> Distance directe entre toutes les faces
+=======
+>>>>>>> 62b55e2bd28e3793aa8c8216cd2beeb978601e16
      }
 }
 
@@ -359,6 +368,7 @@ void MainWindow::displayDirectDistances() {
     }
 }
 
+<<<<<<< HEAD
 <<<<<<< HEAD
 void MainWindow::computeProbabilities(MyMesh *_mesh, QVector<int> IdReps, int k) {
     int progress = 0;
@@ -382,6 +392,8 @@ void MainWindow::computeProbabilities(MyMesh *_mesh, QVector<int> IdReps, int k)
 
 =======
 >>>>>>> Distance directe entre toutes les faces
+=======
+>>>>>>> 62b55e2bd28e3793aa8c8216cd2beeb978601e16
 void MainWindow::segmentationSimple(MyMesh* _mesh, int k) {
 
 
@@ -407,10 +419,21 @@ void MainWindow::segmentationSimple(MyMesh* _mesh, int k) {
     _mesh->add_property(patchId);    
     _mesh->add_property(PB);
 
+<<<<<<< HEAD
     for ( MyMesh::FaceIter curFace = _mesh->faces_begin( ) ; curFace != _mesh->faces_end( ) ; curFace++ ) {
         _mesh->property(patchId, *curFace) = 0;
         patches[0].push_back(curFace->idx());
     }
+=======
+    //computeDirectDistances(_mesh);
+    //qDebug() << "Ok";
+    //displayDirectDistances();
+
+    computeAngularDistances( _mesh );
+    computeGeodesicDistances( _mesh );
+    //displayAngularDistances();
+    //displayGeodesicDistances();
+>>>>>>> 62b55e2bd28e3793aa8c8216cd2beeb978601e16
 
     //computeDirectDistances(_mesh);
     //qDebug() << "Ok";

@@ -58,7 +58,10 @@ public:
 =======
     void computeWeight( MyMesh *_mesh , double coefGeod );
     void computeDirectDistances( MyMesh *_mesh );
+<<<<<<< HEAD
 >>>>>>> Distance directe entre toutes les faces
+=======
+>>>>>>> 62b55e2bd28e3793aa8c8216cd2beeb978601e16
     void segmentationSimple(MyMesh* _mesh, int k);
 
     double avgAngularDistances();
@@ -92,9 +95,12 @@ private:
     std::map<pair<int, int>, double> geodesicDistances;
     std::map<pair<int, int>, double> directDistances;
 <<<<<<< HEAD
+<<<<<<< HEAD
     QVector<MyMesh::Color> colors;
 =======
 >>>>>>> Distance directe entre toutes les faces
+=======
+>>>>>>> 62b55e2bd28e3793aa8c8216cd2beeb978601e16
     Graph dual;
     Ui::MainWindow *ui;
     int nbDijkstraDone = 0;
