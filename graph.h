@@ -17,6 +17,9 @@ public:
     int getNbVertices() const;
     int getNbEdges() const;
 
+    std::vector<std::vector<double>> adjacencyMatrix();
+    std::vector<int> stoerWagner();
+
     GraphVertex &operator[](int i);
 
     void clear();

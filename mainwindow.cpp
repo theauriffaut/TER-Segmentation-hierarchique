@@ -524,10 +524,73 @@ void MainWindow::segmentationSimple(MyMesh* _mesh, int k) {
         nbStepsDone++;
         ui->progressTotal->setValue(nbStepsDone);
 
-        for(int i = 0; i < ambiguousFaces.size(); i++){
-            _mesh->property(patchId, _mesh->face_handle(ambiguousFaces[i])) = biggest;
-            patches[biggest].push_back(ambiguousFaces[i]);
+        QVector<int> VCA;
+        QVector<int> VCB;
+
+        Graph decompositionGraph;
+
+        //-1 Dénote la source S
+        decompositionGraph.addVertex( -1 );
+
+        //-2 Dénote le puits T
+        decompositionGraph.addVertex( -2 );
+
+        for( int i = 0 ; i < ambiguousFaces.size() ; i++ ){
+            //1-Récuperer les faces ambigues->ambiguousFaces
+            //2-Récupérer VCA les faces du patch 1 voisines aux faces ambigues
+            //3-Idem patch 2
+            //4-Créer graphe avec les le dual des faces ambigues + faces voisines
+            //5-Ajouter poids des arêtes
+            //6- Maximum Flow/Minimum Cut
+            FaceHandle currentFace = _mesh->face_handle( ambiguousFaces[i] );
+
+            for ( MyMesh::FaceFaceIter curNeigh = _mesh->ff_iter( currentFace ) ; curNeigh.is_valid() ; curNeigh++ ) {
+                FaceHandle neigh = *curNeigh;
+                if( _mesh->property( patchId , neigh ) == chosenPatch ) VCA.push_back( neigh.idx() );
+                else if ( _mesh->property( patchId , neigh ) == currentId ) VCB.push_back( neigh.idx() );
+
+                std::pair<int , int> key = std::make_pair( currentFace.idx() , neigh.idx() );
+                double angularDistance = angularDistances[key];
+                double weight = 1.0 / ( 1.0 + ( angularDistance / avgAngularDistances() ) );
+                decompositionGraph.addEdge( currentFace.idx() , neigh.idx() , weight );
+            }
+
+            /*_mesh->property(patchId, _mesh->face_handle(ambiguousFaces[i])) = biggest;
+            patches[biggest].push_back(ambiguousFaces[i]);*/
         }
+
+        for ( QVector::iterator it = VCA.begin() ; it != VCA.end() ; ++it ) {
+            FaceHandle currentFace = _mesh->face_handle( *it );
+
+            decompositionGraph.addEdge( currentFace.idx() , -1 , -1 );
+
+            for ( MyMesh::FaceFaceIter curNeigh = _mesh->ff_iter( currentFace ) ; curNeigh.is_valid() ; curNeigh++ ) {
+                FaceHandle neigh = *curNeigh;
+                if( VCA.contains( neigh.idx() ) ) {
+                    std::pair<int , int> key = std::make_pair( currentFace.idx() , neigh.idx() );
+                    double angularDistance = angularDistances[key];
+                    double weight = 1.0 / ( 1.0 + ( angularDistance / avgAngularDistances() ) );
+                    decompositionGraph.addEdge( currentFace.idx() , neigh.idx() , weight );
+                }
+            }
+        }
+
+        for ( QVector::iterator it = VCB.begin() ; it != VCB.end() ; ++it ) {
+            FaceHandle currentFace = _mesh->face_handle( *it );
+
+            decompositionGraph.addEdge( currentFace.idx() , -2 , -1 );
+
+            for ( MyMesh::FaceFaceIter curNeigh = _mesh->ff_iter( currentFace ) ; curNeigh.is_valid() ; curNeigh++ ) {
+                FaceHandle neigh = *curNeigh;
+                if( VCB.contains( neigh.idx() ) ) {
+                    std::pair<int , int> key = std::make_pair( currentFace.idx() , neigh.idx() );
+                    double angularDistance = angularDistances[key];
+                    double weight = 1.0 / ( 1.0 + ( angularDistance / avgAngularDistances() ) );
+                    decompositionGraph.addEdge( currentFace.idx() , neigh.idx() , weight );
+                }
+            }
+        }
+
 
         nbStepsDone++;
         ui->progressTotal->setValue(nbStepsDone);
@@ -559,22 +622,6 @@ void MainWindow::segmentationSimple(MyMesh* _mesh, int k) {
         qDebug() << nb+patches[chosenPatch].size()+patches[currentId].size();
         displayMesh(_mesh);
     }
-
-    //double dist = dijkstraDual(3, 135);
-
-    /*Graph g;
-    g.addVertex(0);
-    g.addVertex(1);
-    g.addVertex(2);
-    g.addVertex(10);
-    g.addVertex(3);
-    g.addVertex(0);
-    g.addEdge(0, 1, 20.3);
-    g.addEdge(1, 3, 10.0);
-    g.addEdge(2, 10, 14.0);
-    g.addEdge(200, 100, 0.1);*/
-
-
 }
 
 /* **** début de la partie boutons et IHM **** */

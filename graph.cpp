@@ -60,3 +60,63 @@ void Graph::clear()
 {
     m_vertices.clear();
 }
+
+std::vector<std::vector<double>> Graph::adjacencyMatrix() {
+    std::vector<std::vector<double>> matrix;
+
+    for( int i = 0 ; i < m_vertices.size() ; ++i ) {
+        for( std::map<int , double>::iterator it = m_adjacencyList.begin() ; it != m_adjacencyList.end() ; ++it ) {
+            matrix[i][it->first] = it->second;
+        }
+    }
+}
+
+std::vector<int> Graph::stoerWagner(){
+    std::vector<std::vector<double>> matrix( adjacencyMatrix() );
+
+    int graphSize = matrix.size();
+    vector<vector<int>> v( graphSize );
+    double bestResult = 1000 * 1000;
+    std::vector<int> set;
+
+    for( int i = 0 ; i < graphSize ; ++i ) {
+        v[i][1] = i;
+    }
+
+    vector<double> w( n );
+    vector<bool> exist( n , true ) , in_a( n );
+
+    for( int ph = 0 ; ph < n - 1 ; ph++ ) {
+        fill( in_a.begin() , in_a.end() , false );
+        fill( w.begin() , w.end() , 0.0 );
+
+        for( int it = 0, prev ; it < n - ph ; it++ ) {
+            int sel = -1;
+            for( int i = 0 ; i < n ; ++i )
+                if( exist[i] && !in_a[i] && ( sel == -1 || w[i] > w[sel] ) )
+                    sel = i;
+
+            if( it == n - ph - 1) {
+                if ( w[sel] < bestResult ) {
+                    bestResult = w[sel];
+                    set = v[sel];
+                }
+
+                v[prev].insert(v[prev].end(), v[sel].begin(), v[sel].end());
+                for( int i = 0 ; i < n ; i++)
+                    matrix[prev][i] = matrix[i][prev] += matrix[sel][i];
+
+                exist[sel] = false;
+            }
+
+            else {
+                in_a[sel] = true;
+                for( int i = 0 ; i < n ; ++i )
+                    w[i] += matrix[sel][i];
+                prev = sel;
+            }
+        }
+    }
+
+    return set;
+}
