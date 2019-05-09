@@ -73,6 +73,8 @@ public:
     void computeDirectDistances(MyMesh *_mesh, int patch);
     void displayDirectDistances();
     void computeProbabilities(MyMesh *_mesh, QVector<int> IdReps, int k);
+    double G(MyMesh *_mesh, int k, int newId);
+    int derivativeG();
 private slots:
     void on_pushButton_chargement_clicked();
     void on_pushButton_segmentation_clicked();
@@ -81,7 +83,7 @@ private:
     MyMesh mesh;
     QVector<QVector<int>> patches;
     QVector<int> ambiguousFaces;
-    unsigned int currentId = 0;
+    int currentId = 0;
     std::map<pair<int, int>, double> angularDistances;
     std::map<pair<int, int>, double> geodesicDistances;
     std::map<pair<int, int>, double> directDistances;
@@ -89,6 +91,10 @@ private:
     Graph dual;
     Ui::MainWindow *ui;
     int nbDijkstraDone = 0;
+
+    QVector<double> minAtK;
+
+    QVector<QVector<int>> idReps;
 };
 
 #endif // MAINWINDOW_H

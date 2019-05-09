@@ -362,6 +362,25 @@ void MainWindow::computeProbabilities(MyMesh *_mesh, QVector<int> IdReps, int k)
     }
 }
 
+double MainWindow::G(MyMesh * _mesh, int k, int newId) {
+    double min = DBL_MAX;
+    double distk = 0.0;
+        for (const int &reps : idReps[k]) {
+            if(distk < min) {
+                min = _mesh->property(dist, _mesh->face_handle(newId))[reps];
+            }
+        }
+    return min;
+}
+
+int MainWindow::derivativeG() {
+    int nPatch;
+
+
+
+    return nPatch;
+}
+
 void MainWindow::segmentationSimple(MyMesh* _mesh, int k) {
 
     colors = { MyMesh::Color(102,0,255), MyMesh::Color(254,231,240), MyMesh::Color(212,115,212), MyMesh::Color(255,0,255), MyMesh::Color(121,248,248), MyMesh::Color(223,109,20),
@@ -369,6 +388,7 @@ void MainWindow::segmentationSimple(MyMesh* _mesh, int k) {
                MyMesh::Color(63,34,4), MyMesh::Color(49,140,231) };
 
     patches = QVector<QVector<int>>(k);
+    minAtK = QVector<double>(k);
     currentId = 0;
 
     ui->progressTotal->setValue(0);
@@ -407,7 +427,7 @@ void MainWindow::segmentationSimple(MyMesh* _mesh, int k) {
         ui->progressTotal->setValue(nbStepsDone);
 
         dual.clear();
-        computeWeight( _mesh , 0.5 , chosenPatch);
+        computeWeight( _mesh , 0.48679, chosenPatch);
         nbStepsDone++;
         ui->progressTotal->setValue(nbStepsDone);
 
@@ -480,11 +500,11 @@ void MainWindow::segmentationSimple(MyMesh* _mesh, int k) {
         while(it != patches[chosenPatch].end()){
             bool alreadyColored = false;
 
-            if(_mesh->property(PB, _mesh->face_handle(*it))[0] <= 0.5) {
+            if(_mesh->property(PB, _mesh->face_handle(*it))[0] >= 0.7) {
                 alreadyColored = true;
             }
             if(!alreadyColored){
-                if(_mesh->property(PB, _mesh->face_handle(*it))[1] <= 0.5){
+                if(_mesh->property(PB, _mesh->face_handle(*it))[1] >= 0.7){
                     qDebug() << *it << "Appartient au patch " << currentId;
                     _mesh->property(patchId, _mesh->face_handle(*it)) = currentId;
                     patches[currentId].push_back(*it);
@@ -497,7 +517,7 @@ void MainWindow::segmentationSimple(MyMesh* _mesh, int k) {
                     patches[chosenPatch].removeOne(*it);
                 }
             } else {
-                if(_mesh->property(PB, _mesh->face_handle(*it))[1] <= 0.5){
+                if(_mesh->property(PB, _mesh->face_handle(*it))[1] >= 0.7){
                     qDebug() << *it << "Face ambigue ";
                     _mesh->property(patchId, _mesh->face_handle(*it)) = -1;
                     ambiguousFaces.push_back(*it);
@@ -546,7 +566,12 @@ void MainWindow::segmentationSimple(MyMesh* _mesh, int k) {
         qDebug() << nb;
         for(int i = 0; i < 2; i++) {
             //_mesh->set_color(_mesh->face_handle(REPs[i]), MyMesh::Color(0,255,0));
-        }
+        }        
+
+        //idReps[chosenPatch].push_back(REPs[0]);
+        //idReps[currentId].push_back(REPs[1]);
+
+        //minAtK.push_back(G(_mesh, currentId, REPs[1]));
 
         qDebug() << patches[chosenPatch].size();
         qDebug() << patches[currentId].size();
