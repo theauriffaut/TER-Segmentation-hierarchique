@@ -70,7 +70,7 @@ public:
 
     FPropHandleT<QVector<double>> PB;
 
-    void computeDirectDistances(MyMesh *_mesh, int patch);
+    void computeDirectDistances(MyMesh *_mesh);
     void displayDirectDistances();
     void computeProbabilities(MyMesh *_mesh, QVector<int> IdReps, int k);
 private slots:
@@ -81,7 +81,7 @@ private:
     MyMesh mesh;
     QVector<QVector<int>> patches;
     QVector<int> ambiguousFaces;
-    unsigned int currentId = 0;
+    int currentId = 0;
     std::map<pair<int, int>, double> angularDistances;
     std::map<pair<int, int>, double> geodesicDistances;
     std::map<pair<int, int>, double> directDistances;
@@ -90,8 +90,12 @@ private:
     Ui::MainWindow *ui;
     int nbDijkstraDone = 0;
 
-    const double coefGeod = 0.3;
-    const double minProba = 0.4;
+    double coefGeod = 0.40;
+    double minProba = 0.55;
+    int minSizePatch = 5;
+    int nbPatch = 10;
+
+    int compteur = 0;
 };
 
 #endif // MAINWINDOW_H

@@ -1,5 +1,6 @@
 #include "mainwindow.h"
 #include "ui_mainwindow.h"
+#include <QThread>
 #include <limits>
 #include <queue>
 #include <time.h>
@@ -312,15 +313,15 @@ void MainWindow::displayAngularDistances() {
     }
 }
 
-void MainWindow::computeDirectDistances(MyMesh *_mesh, int patch) {
+void MainWindow::computeDirectDistances(MyMesh *_mesh) {
     int progress = 0;
-    ui->progressChoix->setRange(0, patches[patch].size());
-    ui->progressChoix->setFormat("%p%");
-    ui->progressChoix->setValue(progress);
-     for(auto curFace : patches[patch]) {
-         for(auto curFace2 : patches[patch]) {
-             FaceHandle fh0 = _mesh->face_handle(curFace);
-             FaceHandle fh1 = _mesh->face_handle(curFace2);
+    ui->progressDistance->setRange(0, _mesh->n_faces());
+    ui->progressDistance->setFormat("%p%");
+    ui->progressDistance->setValue(progress);
+     for(MyMesh::FaceIter curFace = _mesh->faces_begin( ) ; curFace != _mesh->faces_end( ) ; curFace++) {
+         for(MyMesh::FaceIter curFace2 = _mesh->faces_begin( ) ; curFace2 != _mesh->faces_end( ) ; curFace2++) {
+             FaceHandle fh0 = *curFace;
+             FaceHandle fh1 = *curFace2;
              if ( fh0.idx( ) == fh1.idx( ) ||
                   directDistances.find( std::make_pair( fh0.idx() , fh1.idx() ) ) != directDistances.end() ||
                   directDistances.find( std::make_pair( fh1.idx() , fh0.idx() ) ) != directDistances.end() ) continue;
@@ -334,7 +335,7 @@ void MainWindow::computeDirectDistances(MyMesh *_mesh, int patch) {
              directDistances[std::make_pair(  fh0.idx() , fh1.idx() )] = length;
          }
          progress++;
-         ui->progressChoix->setValue(progress);
+         ui->progressDistance->setValue(progress);
      }
 }
 
@@ -383,8 +384,10 @@ void MainWindow::segmentationSimple(MyMesh* _mesh, int k) {
     ui->progressColor->setValue(0);
     ui->progressDual->setValue(0);
     ui->progressDijkstra->setValue(0);
-    ui->progressChoix->setValue(0);
+    ui->progressDistance->setValue(0);
     ui->progressProba->setValue(0);
+    ui->labelChoix->setText("Waiting ...");
+    ui->labelChoix->setStyleSheet("color: #909090;");
 
     int nbStepsDone = 0;
 
@@ -405,7 +408,13 @@ void MainWindow::segmentationSimple(MyMesh* _mesh, int k) {
     ui->progressTotal->setFormat("%p%");
     ui->progressTotal->setValue(nbStepsDone);
 
+    directDistances.clear();
+    computeDirectDistances(_mesh);
+
     for(int i = 1; i < k; i++){
+
+        ui->labelChoix->setText("Waiting ...");
+        ui->labelChoix->setStyleSheet("color: #909090;");
 
         int chosenPatch = 0;
         for(int i = 0; i < patches.size(); i++){
@@ -421,18 +430,23 @@ void MainWindow::segmentationSimple(MyMesh* _mesh, int k) {
         nbStepsDone++;
         ui->progressTotal->setValue(nbStepsDone);
 
-        directDistances.clear();
-        computeDirectDistances(_mesh, chosenPatch);
-
-
         std::pair<int,int> reps;
         double max = 0;
+        ui->labelChoix->setText("Calculating ...");
+        ui->labelChoix->setStyleSheet("color: #FF9900;");
         for(auto it : directDistances){
-            if(it.second > max){
-                max = it.second;
-                reps = it.first;
+            if(_mesh->property(patchId, _mesh->face_handle(it.first.first)) == chosenPatch && _mesh->property(patchId, _mesh->face_handle(it.first.second)) == chosenPatch){
+                if(it.second > max){
+                    max = it.second;
+                    reps = it.first;
+                }
             }
         }
+
+//        bool complete = false;
+//        while(!complete){
+
+//        }
 
         nbStepsDone++;
         ui->progressTotal->setValue(nbStepsDone);
@@ -440,6 +454,13 @@ void MainWindow::segmentationSimple(MyMesh* _mesh, int k) {
         //dual.displayGraph();
 
         QVector<int> REPs = {reps.first, reps.second};
+        ui->labelChoix->setText("Finished !");
+        ui->labelChoix->setStyleSheet("color: #00FF00;");
+        for(int i = 0; i < 2; i++) {
+            _mesh->set_color(_mesh->face_handle(REPs[i]), MyMesh::Color(0,255,0));
+        }
+
+        displayMesh(_mesh);
 
         ui->progressDijkstra->setRange(0, patches[chosenPatch].size());
         ui->progressDijkstra->setFormat("%p%");
@@ -517,17 +538,22 @@ void MainWindow::segmentationSimple(MyMesh* _mesh, int k) {
         nbStepsDone++;
         ui->progressTotal->setValue(nbStepsDone);
 
-        int biggest = chosenPatch;
-        if(patches[chosenPatch].size() < patches[currentId].size()){
-            biggest = currentId;
-        }
-        nbStepsDone++;
-        ui->progressTotal->setValue(nbStepsDone);
-
+        double probRight = 0;
+        double probLeft = 0;
         for(int i = 0; i < ambiguousFaces.size(); i++){
+            probRight = _mesh->property(PB, _mesh->face_handle(ambiguousFaces[i]))[0];
+            probLeft = _mesh->property(PB, _mesh->face_handle(ambiguousFaces[i]))[1];
+            int biggest = chosenPatch;
+            if(probRight < probLeft){
+                biggest = currentId;
+            }
             _mesh->property(patchId, _mesh->face_handle(ambiguousFaces[i])) = biggest;
             patches[biggest].push_back(ambiguousFaces[i]);
         }
+
+
+        nbStepsDone++;
+        ui->progressTotal->setValue(nbStepsDone);
 
         nbStepsDone++;
         ui->progressTotal->setValue(nbStepsDone);
@@ -550,37 +576,77 @@ void MainWindow::segmentationSimple(MyMesh* _mesh, int k) {
         nbStepsDone++;
         ui->progressTotal->setValue(nbStepsDone);
         qDebug() << nb;
-        for(int i = 0; i < 2; i++) {
-            //_mesh->set_color(_mesh->face_handle(REPs[i]), MyMesh::Color(0,255,0));
-        }
+
 
         qDebug() << patches[chosenPatch].size();
         qDebug() << patches[currentId].size();
         qDebug() << nb+patches[chosenPatch].size()+patches[currentId].size();
+
+        int nbFaces = (_mesh->n_faces() * minSizePatch) / 100;
+
+        bool modif = false;
+        for(int y = 0; y < patches.size(); y++){
+            if(patches[y].size() <= nbFaces && patches[y].size() != 0){
+                QVector<int> neighb;
+                for(int x = 0; x < patches.size(); x++){
+                    neighb.push_back(0);
+                }
+                for(int j = 0; j < patches[y].size(); j++){
+                    for (MyMesh::FaceEdgeIter curEdge = _mesh->fe_iter(_mesh->face_handle(patches[y][j])); curEdge.is_valid(); curEdge++) {
+                        FaceHandle face1 = _mesh->face_handle(_mesh->halfedge_handle((* curEdge),1));
+                        FaceHandle face2 = _mesh->face_handle(_mesh->halfedge_handle((* curEdge),0));
+                        if(face1.is_valid()){
+                            neighb[_mesh->property(patchId, face1)]++;
+                        }
+                        if(face2.is_valid()){
+                            neighb[_mesh->property(patchId, face2)]++;
+                        }
+                    }
+                }
+
+                int newPatch = 0;
+                for(int j = 0; j < neighb.size(); j++){
+                    if(j != currentId && j != chosenPatch){
+                        if(neighb[j] > neighb[newPatch]){
+                            newPatch = j;
+                        }
+                    }
+                }
+
+                for(int j = 0; j < patches[y].size(); j++){
+                    _mesh->property(patchId, _mesh->face_handle(patches[y][j])) = newPatch;
+                    patches[newPatch].push_back(patches[y][j]);
+                }
+
+                patches[currentId].clear();
+                currentId--;
+                i--;
+                modif = true;
+            }
+        }
+        if(modif){
+            compteur++;
+        } else {
+            compteur = 0;
+        }
+
+        if(compteur == 2){
+            break;
+        }
+
         displayMesh(_mesh);
     }
-
-    //double dist = dijkstraDual(3, 135);
-
-    /*Graph g;
-    g.addVertex(0);
-    g.addVertex(1);
-    g.addVertex(2);
-    g.addVertex(10);
-    g.addVertex(3);
-    g.addVertex(0);
-    g.addEdge(0, 1, 20.3);
-    g.addEdge(1, 3, 10.0);
-    g.addEdge(2, 10, 14.0);
-    g.addEdge(200, 100, 0.1);*/
-
-
+    displayMesh(_mesh);
 }
 
 /* **** début de la partie boutons et IHM **** */
 
 void MainWindow::on_pushButton_segmentation_clicked() {
     int k = ui->spinBox_segmentation->value();
+    coefGeod = ui->doubleSpinBox_coef->value();
+    minProba = ui->doubleSpinBox_probMin->value();
+    minSizePatch = ui->spinBox_pourcentage->value();
+
     segmentationSimple(&mesh, k);
 }
 
@@ -599,6 +665,11 @@ void MainWindow::on_pushButton_chargement_clicked()
 
     // on affiche le maillage
     displayMesh(&mesh);
+
+    ui->doubleSpinBox_coef->setValue(coefGeod);
+    ui->doubleSpinBox_probMin->setValue(minProba);
+    ui->spinBox_pourcentage->setValue(minSizePatch);
+    ui->spinBox_segmentation->setValue(nbPatch);
 }
 
 /* **** fin de la partie boutons et IHM **** */
