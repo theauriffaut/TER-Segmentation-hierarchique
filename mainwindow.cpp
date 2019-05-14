@@ -371,8 +371,6 @@ void MainWindow::computeProbabilities(MyMesh *_mesh, QVector<int> IdReps, int k)
 
 void MainWindow::segmentationSimple(MyMesh* _mesh, int k) {
 
-
-
     colors = { MyMesh::Color(102,0,255), MyMesh::Color(254,231,240), MyMesh::Color(212,115,212), MyMesh::Color(255,0,255), MyMesh::Color(121,248,248), MyMesh::Color(223,109,20),
                MyMesh::Color(115,8,0), MyMesh::Color(1,215,88), MyMesh::Color(240,195,0), MyMesh::Color(255,9,33), MyMesh::Color(231,62,1), MyMesh::Color(4,139,154), MyMesh::Color(135,233,144),
                MyMesh::Color(63,34,4), MyMesh::Color(49,140,231) };
@@ -404,7 +402,7 @@ void MainWindow::segmentationSimple(MyMesh* _mesh, int k) {
     computeAngularDistances( _mesh );
     computeGeodesicDistances( _mesh );
 
-    ui->progressTotal->setRange(0, (k-1)*11);
+    ui->progressTotal->setRange(0, (k-1)*5);
     ui->progressTotal->setFormat("%p%");
     ui->progressTotal->setValue(nbStepsDone);
 
@@ -432,8 +430,7 @@ void MainWindow::segmentationSimple(MyMesh* _mesh, int k) {
 
         std::pair<int,int> reps;
         double max = 0;
-        ui->labelChoix->setText("Calculating ...");
-        ui->labelChoix->setStyleSheet("color: #FF9900;");
+
         for(auto it : directDistances){
             if(_mesh->property(patchId, _mesh->face_handle(it.first.first)) == chosenPatch && _mesh->property(patchId, _mesh->face_handle(it.first.second)) == chosenPatch){
                 if(it.second > max){
@@ -443,124 +440,196 @@ void MainWindow::segmentationSimple(MyMesh* _mesh, int k) {
             }
         }
 
-//        bool complete = false;
-//        while(!complete){
-
-//        }
-
-        nbStepsDone++;
-        ui->progressTotal->setValue(nbStepsDone);
-
-        //dual.displayGraph();
-
-        QVector<int> REPs = {reps.first, reps.second};
-        ui->labelChoix->setText("Finished !");
-        ui->labelChoix->setStyleSheet("color: #00FF00;");
-        for(int i = 0; i < 2; i++) {
-            _mesh->set_color(_mesh->face_handle(REPs[i]), MyMesh::Color(0,255,0));
-        }
-
-        displayMesh(_mesh);
-
-        ui->progressDijkstra->setRange(0, patches[chosenPatch].size());
-        ui->progressDijkstra->setFormat("%p%");
-        ui->progressDijkstra->setValue(nbDijkstraDone);
-
-        for(int i = 0; i < patches[chosenPatch].size(); i++){
-            _mesh->property(dist, _mesh->face_handle(patches[chosenPatch][i])).clear();
-        }
-        nbStepsDone++;
-        ui->progressTotal->setValue(nbStepsDone);
-
-        for(int i = 0; i < 2; i++) {
-            dijkstraByREP(_mesh, REPs[i], chosenPatch);
-            nbStepsDone++;
-            ui->progressTotal->setValue(nbStepsDone);
-            nbDijkstraDone = 0;
-        }
-
-        for(int i = 0; i < patches[chosenPatch].size(); i++){
-            _mesh->property(PB, _mesh->face_handle(patches[chosenPatch][i])).clear();
-        }
-
-        computeProbabilities(_mesh, REPs, chosenPatch);
-        nbStepsDone++;
-        ui->progressTotal->setValue(nbStepsDone);
-
-        /*PA = 1 - PB
-        nbStepsDone++;
-        ui->progressTotal->setValue(nbStepsDone);*/
 
         int nbFacesColored = 0;
+
         ui->progressColor->setRange(0, _mesh->n_faces());
         ui->progressColor->setFormat("%p%");
         ui->progressColor->setValue(nbFacesColored);
 
+        QVector<int> REPs;
+ //-------------------------------------------------------------------------------------------
+
+        ui->labelChoix->setText("Calculating ...");
+        ui->labelChoix->setStyleSheet("color: #FF9900;");
 
         currentId++;
 
-        double distMAX = dijkstraDual(REPs[0], REPs[1]);
+        bool complete = false;
+        while(!complete){
 
-        ambiguousFaces.clear();
+            ui->progressDual->setRange(0, patches[chosenPatch].size());
 
-        QVector<int>::iterator it = patches[chosenPatch].begin();
-        while(it != patches[chosenPatch].end()){
-            bool alreadyColored = false;
+            REPs = {reps.first, reps.second};
 
-            if(_mesh->property(PB, _mesh->face_handle(*it))[0] >= minProba) {
-                alreadyColored = true;
+            ui->progressDijkstra->setRange(0, patches[chosenPatch].size());
+            ui->progressDijkstra->setFormat("%p%");
+            ui->progressDijkstra->setValue(0);
+
+            for(int i = 0; i < patches[currentId].size(); i++){
+                patches[chosenPatch].push_back(patches[currentId][i]);
             }
-            if(!alreadyColored){
-                if(_mesh->property(PB, _mesh->face_handle(*it))[1] >= minProba){
-                    qDebug() << *it << "Appartient au patch " << currentId;
-                    _mesh->property(patchId, _mesh->face_handle(*it)) = currentId;
-                    patches[currentId].push_back(*it);
-                    patches[chosenPatch].removeOne(*it);
+            patches[currentId].clear();
+
+            for(int i = 0; i < patches[chosenPatch].size(); i++){
+                _mesh->property(dist, _mesh->face_handle(patches[chosenPatch][i])).clear();
+            }
+
+            for(int i = 0; i < 2; i++) {
+                dijkstraByREP(_mesh, REPs[i], chosenPatch);
+                nbDijkstraDone = 0;
+            }
+
+            for(int i = 0; i < patches[chosenPatch].size(); i++){
+                _mesh->property(PB, _mesh->face_handle(patches[chosenPatch][i])).clear();
+            }
+
+            computeProbabilities(_mesh, REPs, chosenPatch);
+
+            double distMAX = dijkstraDual(REPs[0], REPs[1]);
+
+            ambiguousFaces.clear();
+
+            QVector<int>::iterator it = patches[chosenPatch].begin();
+            while(it != patches[chosenPatch].end()){
+                bool alreadyColored = false;
+
+                if(_mesh->property(PB, _mesh->face_handle(*it))[0] >= minProba) {
                     alreadyColored = true;
-                } else {
-                    qDebug() << *it << "Appartient à personne ";
-                    _mesh->property(patchId, _mesh->face_handle(*it)) = -1;
-                    ambiguousFaces.push_back(*it);
-                    patches[chosenPatch].removeOne(*it);
                 }
-            } else {
-                if(_mesh->property(PB, _mesh->face_handle(*it))[1] >= minProba){
-                    qDebug() << *it << "Face ambigue ";
-                    _mesh->property(patchId, _mesh->face_handle(*it)) = -1;
-                    ambiguousFaces.push_back(*it);
-                    patches[chosenPatch].removeOne(*it);
+                if(!alreadyColored){
+                    if(_mesh->property(PB, _mesh->face_handle(*it))[1] >= minProba){
+                        //qDebug() << *it << "Appartient au patch " << currentId;
+                        _mesh->property(patchId, _mesh->face_handle(*it)) = currentId;
+                        patches[currentId].push_back(*it);
+                        patches[chosenPatch].removeOne(*it);
+                        alreadyColored = true;
+                    } else {
+                        //qDebug() << *it << "Appartient à personne ";
+                        _mesh->property(patchId, _mesh->face_handle(*it)) = -1;
+                        ambiguousFaces.push_back(*it);
+                        patches[chosenPatch].removeOne(*it);
+                    }
                 } else {
-                    qDebug() << *it << "Appartient au patch " << chosenPatch;
-                    it++;
+                    if(_mesh->property(PB, _mesh->face_handle(*it))[1] >= minProba){
+                        //qDebug() << *it << "Face ambigue ";
+                        _mesh->property(patchId, _mesh->face_handle(*it)) = -1;
+                        ambiguousFaces.push_back(*it);
+                        patches[chosenPatch].removeOne(*it);
+                    } else {
+                        //qDebug() << *it << "Appartient au patch " << chosenPatch;
+                        it++;
+                    }
                 }
             }
-        }
-        nbStepsDone++;
-        ui->progressTotal->setValue(nbStepsDone);
 
-        double probRight = 0;
-        double probLeft = 0;
-        for(int i = 0; i < ambiguousFaces.size(); i++){
-            probRight = _mesh->property(PB, _mesh->face_handle(ambiguousFaces[i]))[0];
-            probLeft = _mesh->property(PB, _mesh->face_handle(ambiguousFaces[i]))[1];
+            double probRight = 0;
+            double probLeft = 0;
+            for(int i = 0; i < ambiguousFaces.size(); i++){
+                probRight += _mesh->property(PB, _mesh->face_handle(ambiguousFaces[i]))[0];
+                probLeft += _mesh->property(PB, _mesh->face_handle(ambiguousFaces[i]))[1];
+            }
             int biggest = chosenPatch;
             if(probRight < probLeft){
                 biggest = currentId;
             }
-            _mesh->property(patchId, _mesh->face_handle(ambiguousFaces[i])) = biggest;
-            patches[biggest].push_back(ambiguousFaces[i]);
+
+            for(int i = 0; i < ambiguousFaces.size(); i++){
+                _mesh->property(patchId, _mesh->face_handle(ambiguousFaces[i])) = biggest;
+                patches[biggest].push_back(ambiguousFaces[i]);
+            }
+
+            std::pair<int, int> newReps;
+
+            int idMinA = reps.first;
+            double min = DBL_MAX;
+            for(int f = 0; f < patches[chosenPatch].size(); f++){
+                double minSum = 0;
+                for(int fi = 0; fi < patches[chosenPatch].size(); fi++){
+                    double distance = 0;
+                    std::map<std::pair<int,int>,double>::iterator it = directDistances.find( std::make_pair( patches[chosenPatch][f] , patches[chosenPatch][fi] ) );
+                    if(it != directDistances.end()){
+                        distance = it->second;
+                    } else {
+                        std::map<std::pair<int,int>,double>::iterator it2 = directDistances.find( std::make_pair( patches[chosenPatch][fi] , patches[chosenPatch][f] ) );
+                        if(it2 != directDistances.end()){
+                            distance = it2->second;
+                        }
+                    }
+                    minSum += _mesh->property(PB, _mesh->face_handle(patches[chosenPatch][fi]))[0] * distance;
+                }
+                if(min > minSum){
+                    min = minSum;
+                    idMinA = patches[chosenPatch][f];
+                }
+            }
+
+            newReps.first = idMinA;
+
+            int idMinB = reps.second;
+            min = DBL_MAX;
+            for(int f = 0; f < patches[currentId].size(); f++){
+                double minSum = 0;
+                for(int fi = 0; fi < patches[currentId].size(); fi++){
+                    double distance = 0;
+                    std::map<std::pair<int,int>,double>::iterator it = directDistances.find( std::make_pair( patches[currentId][f] , patches[currentId][fi] ) );
+                    if(it != directDistances.end()){
+                        distance = it->second;
+                    } else {
+                        std::map<std::pair<int,int>,double>::iterator it2 = directDistances.find( std::make_pair( patches[currentId][fi] , patches[currentId][f] ) );
+                        if(it2 != directDistances.end()){
+                            distance = it2->second;
+                        }
+                    }
+                    minSum += _mesh->property(PB, _mesh->face_handle(patches[currentId][fi]))[1] * distance;
+                }
+                if(min > minSum){
+                    min = minSum;
+                    idMinB = patches[currentId][f];
+                }
+            }
+
+
+            newReps.second = idMinB;
+
+            _mesh->set_color(_mesh->face_handle(newReps.first), MyMesh::Color(0,255,0));
+            _mesh->set_color(_mesh->face_handle(newReps.second), MyMesh::Color(0,255,0));
+            _mesh->set_color(_mesh->face_handle(reps.first), colors[chosenPatch]);
+            _mesh->set_color(_mesh->face_handle(reps.second), colors[currentId]);
+
+            qDebug() << "Nouvelles Faces :" << newReps << "Ancienne Face :" << reps;
+            if(newReps.first != reps.first && newReps.first != reps.second){
+                complete = false;
+                reps = newReps;
+            } else if(newReps.second != reps.first && newReps.second != reps.second){
+                complete = false;
+                reps = newReps;
+            } else if(newReps.first == newReps.second){
+                qDebug() << "Erreur: faces représentantes égales.";
+                break;
+            } else {
+                complete = true;
+                reps = newReps;
+                REPs = {newReps.first, newReps.second};
+            }
+
+
+
+            displayMesh(_mesh);
         }
 
-
+        ui->labelChoix->setText("Finished !");
+        ui->labelChoix->setStyleSheet("color: #00FF00;");
+        qDebug() << "Nb k =" << i;
         nbStepsDone++;
         ui->progressTotal->setValue(nbStepsDone);
+ //-------------------------------------------------------------------------------------------
 
-        nbStepsDone++;
-        ui->progressTotal->setValue(nbStepsDone);
+
         int nb =0;
         for (MyMesh::FaceIter curFace = _mesh->faces_begin(); curFace != _mesh->faces_end(); curFace++)
         {
-            qDebug() << curFace->idx() << _mesh->property(patchId, *curFace);
+            //qDebug() << curFace->idx() << _mesh->property(patchId, *curFace);
             if(_mesh->property(patchId, *curFace) == -1){
                 _mesh->set_color(*curFace, MyMesh::Color(255, 0, 0));
                 nb++;
@@ -575,12 +644,12 @@ void MainWindow::segmentationSimple(MyMesh* _mesh, int k) {
         }
         nbStepsDone++;
         ui->progressTotal->setValue(nbStepsDone);
-        qDebug() << nb;
+        //qDebug() << nb;
 
 
-        qDebug() << patches[chosenPatch].size();
-        qDebug() << patches[currentId].size();
-        qDebug() << nb+patches[chosenPatch].size()+patches[currentId].size();
+//        qDebug() << patches[chosenPatch].size();
+//        qDebug() << patches[currentId].size();
+//        qDebug() << nb+patches[chosenPatch].size()+patches[currentId].size();
 
         int nbFaces = (_mesh->n_faces() * minSizePatch) / 100;
 
@@ -630,10 +699,12 @@ void MainWindow::segmentationSimple(MyMesh* _mesh, int k) {
             compteur = 0;
         }
 
-        if(compteur == 2){
+        nbStepsDone++;
+        ui->progressTotal->setValue(nbStepsDone);
+
+        if(compteur == 5){
             break;
         }
-
         displayMesh(_mesh);
     }
     displayMesh(_mesh);

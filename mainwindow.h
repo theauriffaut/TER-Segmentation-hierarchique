@@ -90,7 +90,7 @@ private:
     Ui::MainWindow *ui;
     int nbDijkstraDone = 0;
 
-    double coefGeod = 0.40;
+    double coefGeod = 0.25;
     double minProba = 0.55;
     int minSizePatch = 5;
     int nbPatch = 10;
