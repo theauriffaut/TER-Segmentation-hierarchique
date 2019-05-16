@@ -559,10 +559,10 @@ void MainWindow::segmentationSimple(MyMesh* _mesh, int k) {
             patches[biggest].push_back(ambiguousFaces[i]);*/
         }
 
-        for ( QVector::iterator it = VCA.begin() ; it != VCA.end() ; ++it ) {
+        for ( QVector<int>::iterator it = VCA.begin() ; it != VCA.end() ; ++it ) {
             FaceHandle currentFace = _mesh->face_handle( *it );
 
-            decompositionGraph.addEdge( currentFace.idx() , -1 , -1 );
+            decompositionGraph.addEdge( currentFace.idx() , -1 , 1000 * 1000 * 1000 );
 
             for ( MyMesh::FaceFaceIter curNeigh = _mesh->ff_iter( currentFace ) ; curNeigh.is_valid() ; curNeigh++ ) {
                 FaceHandle neigh = *curNeigh;
@@ -570,15 +570,15 @@ void MainWindow::segmentationSimple(MyMesh* _mesh, int k) {
                     std::pair<int , int> key = std::make_pair( currentFace.idx() , neigh.idx() );
                     double angularDistance = angularDistances[key];
                     double weight = 1.0 / ( 1.0 + ( angularDistance / avgAngularDistances() ) );
-                    decompositionGraph.addEdge( currentFace.idx() , neigh.idx() , weight );
+                   decompositionGraph.addEdge( currentFace.idx() , neigh.idx() , weight );
                 }
             }
         }
 
-        for ( QVector::iterator it = VCB.begin() ; it != VCB.end() ; ++it ) {
+        for ( QVector<int>::iterator it = VCB.begin() ; it != VCB.end() ; ++it ) {
             FaceHandle currentFace = _mesh->face_handle( *it );
 
-            decompositionGraph.addEdge( currentFace.idx() , -2 , -1 );
+            decompositionGraph.addEdge( currentFace.idx() , -2 , 1000 * 1000 * 1000 );
 
             for ( MyMesh::FaceFaceIter curNeigh = _mesh->ff_iter( currentFace ) ; curNeigh.is_valid() ; curNeigh++ ) {
                 FaceHandle neigh = *curNeigh;
@@ -591,6 +591,25 @@ void MainWindow::segmentationSimple(MyMesh* _mesh, int k) {
             }
         }
 
+        qDebug() << "Taille du graphe ambigu" << decompositionGraph.getNbVertices();
+        decompositionGraph.displayGraph();
+        /*std::vector<std::vector<double>> matrix = decompositionGraph.adjacencyMatrix();
+
+        qDebug() << "MATRICE D'ADJACENCE";
+        for ( int ligne = 0 ; ligne < 10 ; ++ligne ) {
+            for ( int colonne = 0 ; colonne < 10 ; ++colonne ) {
+                qDebug() << ligne << "/" << colonne << "=" << matrix[ligne][colonne];
+            }
+        }*/
+
+        std::vector<int> set = decompositionGraph.stoerWagner();
+        qDebug() << "Stoer Wagner";
+        for( int i = 0 ; i < set.size() ; ++i ) {
+            qDebug() << set[i];
+        }
+        qDebug() << "Stoer Wagner end";
+
+        //_mesh->set_color(_mesh->face_handle(decompositionGraph[res.second[0]].getId()) , MyMesh::Color(0, 255, 0));
 
         nbStepsDone++;
         ui->progressTotal->setValue(nbStepsDone);
@@ -620,6 +639,12 @@ void MainWindow::segmentationSimple(MyMesh* _mesh, int k) {
         qDebug() << patches[chosenPatch].size();
         qDebug() << patches[currentId].size();
         qDebug() << nb+patches[chosenPatch].size()+patches[currentId].size();
+
+        for( int i = 0 ; i < set.size() ; ++i ) {
+            if ( set[i] != -1 || set[i] != -2)
+                _mesh->set_color(_mesh->face_handle(set[i]) , MyMesh::Color(0, 255, 0));
+        }
+
         displayMesh(_mesh);
     }
 }

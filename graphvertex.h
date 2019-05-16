@@ -11,7 +11,8 @@
 class GraphVertex
 {
 public:
-
+    std::vector<int> mergedVertices;
+    inline std::vector<int> &getMergedVertices() { return mergedVertices; }
     inline GraphVertex ( ){}
 
     inline GraphVertex( int id ){
@@ -19,6 +20,7 @@ public:
     }
 
     std::map<int , double> m_adjacencyList;
+    inline std::map<int , double> &getAdjacencyList() { return m_adjacencyList; }
     inline int getId() const { return this->m_id; }
     inline void displayVertex() {
         std::cout << m_id << ":->";

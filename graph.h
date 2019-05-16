@@ -10,6 +10,8 @@ public:
     Graph();
     void addVertex( int vertexID );
     void addEdge( int vertexID0 , int vertexID1 , double weight );
+    void removeVertex ( int vertexID );
+    void mergeVertices ( int vertexID0 , int vertexID1 );
 
     int getVertexById( int id ) const;
     void displayGraph( );
@@ -18,7 +20,9 @@ public:
     int getNbEdges() const;
 
     std::vector<std::vector<double>> adjacencyMatrix();
+    std::pair<std::vector<GraphVertex> , double> minCut();
     std::vector<int> stoerWagner();
+    //std::vector<int> stoerWagner();
 
     GraphVertex &operator[](int i);
 

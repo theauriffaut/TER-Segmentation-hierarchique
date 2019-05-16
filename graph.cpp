@@ -62,61 +62,138 @@ void Graph::clear()
 }
 
 std::vector<std::vector<double>> Graph::adjacencyMatrix() {
-    std::vector<std::vector<double>> matrix;
 
-    for( int i = 0 ; i < m_vertices.size() ; ++i ) {
-        for( std::map<int , double>::iterator it = m_adjacencyList.begin() ; it != m_adjacencyList.end() ; ++it ) {
-            matrix[i][it->first] = it->second;
+    std::vector<std::vector<double>> matrix ( getNbVertices() , std::vector<double> ( getNbVertices() , 0.0 ) );
+
+    for( int i = 0 ; i < getNbVertices() ; ++i ) {
+        for( std::map<int , double>::iterator it = m_vertices[i].m_adjacencyList.begin() ; it != m_vertices[i].m_adjacencyList.end() ; ++it ) {
+            matrix[i][getVertexById(it->first)] = it->second;
         }
     }
+
+    return matrix;
 }
 
-std::vector<int> Graph::stoerWagner(){
-    std::vector<std::vector<double>> matrix( adjacencyMatrix() );
 
-    int graphSize = matrix.size();
-    vector<vector<int>> v( graphSize );
-    double bestResult = 1000 * 1000;
-    std::vector<int> set;
+std::pair<std::vector<GraphVertex> , double > Graph::minCut() {
+    std::vector<GraphVertex> A = { m_vertices[0] };
 
-    for( int i = 0 ; i < graphSize ; ++i ) {
-        v[i][1] = i;
-    }
+    while( A.size() != getNbVertices() ) {
+        double max = 0.0;
+        int idMax = 0;
 
-    vector<double> w( n );
-    vector<bool> exist( n , true ) , in_a( n );
+        for( int i = 0 ; i < A.size() ; ++i ) {
+            for( std::map<int , double>::iterator it = A[i].m_adjacencyList.begin() ;
+                 it != A[i].m_adjacencyList.end() ;
+                 ++it ) {
 
-    for( int ph = 0 ; ph < n - 1 ; ph++ ) {
-        fill( in_a.begin() , in_a.end() , false );
-        fill( w.begin() , w.end() , 0.0 );
-
-        for( int it = 0, prev ; it < n - ph ; it++ ) {
-            int sel = -1;
-            for( int i = 0 ; i < n ; ++i )
-                if( exist[i] && !in_a[i] && ( sel == -1 || w[i] > w[sel] ) )
-                    sel = i;
-
-            if( it == n - ph - 1) {
-                if ( w[sel] < bestResult ) {
-                    bestResult = w[sel];
-                    set = v[sel];
+                bool isInA = false;
+                for ( int j = 0 ; j < A.size() ; ++j ){
+                    if (A[j].getId() == it->first) {
+                        isInA = true;
+                        break;
+                    }
                 }
 
-                v[prev].insert(v[prev].end(), v[sel].begin(), v[sel].end());
-                for( int i = 0 ; i < n ; i++)
-                    matrix[prev][i] = matrix[i][prev] += matrix[sel][i];
+                if ( isInA ) continue;
 
-                exist[sel] = false;
-            }
-
-            else {
-                in_a[sel] = true;
-                for( int i = 0 ; i < n ; ++i )
-                    w[i] += matrix[sel][i];
-                prev = sel;
+                if ( it->second > max ) {
+                    max = it->second;
+                    idMax = getVertexById( it->first );
+                }
             }
         }
+        A.push_back( m_vertices[idMax] );
     }
 
-    return set;
+    GraphVertex last = A[A.size() - 1];
+    GraphVertex nextToLast = A[A.size() - 2];
+    double weight = 0.0;
+
+    for( std::map<int , double>::iterator it = last.m_adjacencyList.begin() ;
+         it != last.m_adjacencyList.end () ;
+         ++it )
+        weight += it->second;
+
+    std::pair<std::vector<GraphVertex> , double> ret;
+    std::vector<GraphVertex> first = { nextToLast , last };
+    ret = std::make_pair( first , weight );
+    return ret;
+}
+
+void Graph::removeVertex ( int vertexID ) {
+    int id = getVertexById(vertexID);
+    GraphVertex v = m_vertices[id];
+
+    for( std::map<int , double>::iterator it = v.m_adjacencyList.begin() ;
+         it != v.m_adjacencyList.end() ;
+         ++it  ) {
+
+        int currentId = getVertexById(it->first);
+        std::map<int, double>::iterator toDelete = m_vertices[currentId].getAdjacencyList().find(v.getId());
+        m_vertices[currentId].getAdjacencyList().erase(toDelete);
+    }
+
+    m_vertices.erase( m_vertices.begin() + id );
+}
+
+
+void Graph::mergeVertices ( int vertexID0 , int vertexID1 ) {
+    GraphVertex v0 = m_vertices[getVertexById(vertexID0)];
+    GraphVertex v1 = m_vertices[getVertexById(vertexID1)];
+
+    m_vertices[getVertexById(vertexID0)].getMergedVertices().push_back(vertexID1);
+    for ( std::vector<int>::iterator it = v1.mergedVertices.begin() ;
+          it != v1.mergedVertices.end() ;
+          ++it ) {
+        m_vertices[getVertexById(vertexID0)].getMergedVertices().push_back(*it);
+    }
+
+    for ( std::map<int , double>::iterator it = v1.m_adjacencyList.begin() ;
+          it != v1.m_adjacencyList.end() ;
+          ++it ) {
+
+        std::map<int , double>::iterator it2 = v0.m_adjacencyList.find(it->first);
+
+        if(it2 != v0.m_adjacencyList.end() ) {
+            it2->second += it->second;
+        }
+
+        else if( it->first != vertexID0 ){
+            addEdge(vertexID0 , it->first , it->second);
+        }
+    }
+    GraphVertex v0COPY = m_vertices[getVertexById(vertexID0)];
+    GraphVertex v1COPY = m_vertices[getVertexById(vertexID1)];
+    removeVertex( vertexID1 );
+}
+
+std::vector<int> Graph::stoerWagner() {
+    double bestResult = 1000 * 1000 * 1000;
+    std::vector<int> bestCut;
+    while (getNbVertices() > 1) {
+        std::cout << "Nombre de sommets restants: " << getNbVertices() << std::endl;
+        std::pair<std::vector<GraphVertex> , double > currentCut = minCut();
+        std::cout << currentCut.first.size();
+        std::vector<GraphVertex> vertices = currentCut.first;
+        double weight = currentCut.second;
+
+        if ( weight < bestResult ) {
+            bestResult = weight;
+            bestCut.clear();
+            for ( std::vector<GraphVertex>::iterator it = vertices.begin() ;
+                  it != vertices.end() ;
+                  ++it ) {
+                GraphVertex current = *it;
+                for ( std::vector<int>::iterator it2 = current.mergedVertices.begin() ;
+                      it2 != current.mergedVertices.end() ;
+                      ++it2 ) {
+                    bestCut.push_back(*it2);
+                }
+                bestCut.push_back(current.getId());
+            }
+        }
+        mergeVertices( vertices[0].getId() , vertices[1].getId() );
+    }
+    return bestCut;
 }
