@@ -17,6 +17,10 @@ int Graph::getVertexById( int id ) const {
 }
 
 void Graph::addVertex( int vertexID ) {
+    /**
+     * On vérifie l'existence du sommet au préalable et on ne l'ajoute pas si il
+     * existe déjà.
+     */
     int result = getVertexById( vertexID );
     if( result == -1 ){
         GraphVertex v( vertexID );
@@ -25,6 +29,10 @@ void Graph::addVertex( int vertexID ) {
 }
 
 void Graph::addEdge( int vertexID0 , int vertexID1 , double weight ) {
+    /**
+     * On utilise la fonction addVertex sur les deux ID passés en paramètres. Ils
+     * seront créé si ils n'existent pas.
+     */
     addVertex( vertexID0 );
     addVertex( vertexID1 );
     //GraphVertex v0 = ;
