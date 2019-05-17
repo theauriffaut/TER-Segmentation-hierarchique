@@ -541,14 +541,17 @@ void MainWindow::segmentationSimple(MyMesh* _mesh, int k) {
         double probRight = 0;
         double probLeft = 0;
         for(int i = 0; i < ambiguousFaces.size(); i++){
-            probRight = _mesh->property(PB, _mesh->face_handle(ambiguousFaces[i]))[0];
-            probLeft = _mesh->property(PB, _mesh->face_handle(ambiguousFaces[i]))[1];
-            int biggest = chosenPatch;
-            if(probRight < probLeft){
-                biggest = currentId;
-            }
+            probRight += _mesh->property(PB, _mesh->face_handle(ambiguousFaces[i]))[0];
+            probLeft += _mesh->property(PB, _mesh->face_handle(ambiguousFaces[i]))[1];
+        }
+        int biggest = chosenPatch;
+        if(probRight < probLeft){
+            biggest = currentId;
+        }
+        for(int i = 0; i < ambiguousFaces.size(); i++){
             _mesh->property(patchId, _mesh->face_handle(ambiguousFaces[i])) = biggest;
             patches[biggest].push_back(ambiguousFaces[i]);
+
         }
 
 
