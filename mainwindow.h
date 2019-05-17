@@ -53,7 +53,7 @@ public:
     double geodesicDistance( MyMesh *_mesh , int edgeID);
     void computeGeodesicDistances( MyMesh *_mesh);
     void computeAngularDistances( MyMesh *_mesh );
-    void computeWeight( MyMesh *_mesh , double coefGeod, int patch );
+    void computeWeight( MyMesh *_mesh , double coefGeod);
     void segmentationSimple(MyMesh* _mesh, int k);
 
     double avgAngularDistances();
@@ -63,9 +63,7 @@ public:
     void displayAngularDistances();
 
     double dijkstraDual(int v1, int v2);
-    void dijkstraByREP(MyMesh *_mesh, int IdFaceREP, int k);
 
-    FPropHandleT<QVector<double>> dist;
     FPropHandleT<int> patchId;
 
     FPropHandleT<QVector<double>> PB;
@@ -73,9 +71,12 @@ public:
     void computeDirectDistances(MyMesh *_mesh);
     void displayDirectDistances();
     void computeProbabilities(MyMesh *_mesh, QVector<int> IdReps, int k);
+
 private slots:
     void on_pushButton_chargement_clicked();
     void on_pushButton_segmentation_clicked();
+    void on_pushButtonLoadDistance_clicked();
+    void on_pushButtonComputeDistance_clicked();
 
 private:
     MyMesh mesh;
@@ -89,6 +90,9 @@ private:
     Graph dual;
     Ui::MainWindow *ui;
     int nbDijkstraDone = 0;
+    QString fileName;
+    QString fileNameDistance;
+    bool ready = false;
 
     double coefGeod = 0.25;
     double minProba = 0.55;

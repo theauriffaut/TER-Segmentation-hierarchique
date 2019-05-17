@@ -4,6 +4,7 @@
 #include <limits>
 #include <queue>
 #include <time.h>
+#include <fstream>
 
 #define myqDebug() qDebug() << fixed << qSetRealNumberPrecision(8)
 
@@ -63,42 +64,17 @@ double MainWindow::dijkstraDual(int v1, int v2) {
   if(Parents[v2] == -1){
       if(v2 != StartNode) {
         return DBL_MAX;
-         //qDebug() << "Erreur : Chemin impossible entre le vertex" << v1 << "et le vertex" << v2 << "car composante non connexe";
+         qDebug() << "Erreur : Chemin impossible entre le vertex" << v1 << "et le vertex" << v2 << "car composante non connexe";
       } else {
+
         return 0;
       }
 
-  } else {
-
-
-    /*chemin.push_back(v2);
-    //qDebug() << "Vertex depart :" << v2;
-    for (int p = Parents[v2]; p != -1; p = Parents[p]){
-<<<<<<< Updated upstream
-      qDebug() << " <- " << p << Distances[p] << Parents[p];
-      if(p == 0 && Parents[p] == 0){
-          return Distances[v2];
-      }
-=======
-      qDebug() << " <- " << p;
->>>>>>> Stashed changes
-      chemin.push_back(p);
-    }*/
-
-    //qDebug() << "Chemin depuis le vertex" << StartNode << "au vertex" << v2 << "a une taille de" << Distances[v2] << endl;
   }
 
     return Distances[v2];
 }
 
-void MainWindow::dijkstraByREP(MyMesh* _mesh, int IdFaceREP, int k) {
-    for(int i = 0; i < patches[k].size(); i++){
-        _mesh->property(dist, _mesh->face_handle(patches[k][i])).push_back(dijkstraDual(IdFaceREP, patches[k][i]));
-
-        nbDijkstraDone++;
-        ui->progressDijkstra->setValue(nbDijkstraDone);
-    }
-}
 
 double MainWindow::angleFF(MyMesh* _mesh, int faceID0,  int faceID1)
 {
@@ -231,9 +207,9 @@ void MainWindow::computeGeodesicDistances( MyMesh *_mesh ) {
     }
 }
 
-void MainWindow::computeWeight( MyMesh *_mesh , double coefGeod , int patch) {
+void MainWindow::computeWeight( MyMesh *_mesh , double coefGeod) {
     int progress = 0;
-    ui->progressDual->setRange(0, patches[patch].size());
+    ui->progressDual->setRange(0, _mesh->n_faces());
     ui->progressDual->setFormat("%p%");
     ui->progressDual->setValue(progress);
 
@@ -241,7 +217,6 @@ void MainWindow::computeWeight( MyMesh *_mesh , double coefGeod , int patch) {
     double avgAngular = avgAngularDistances();
 
     for ( MyMesh::FaceIter curFace = _mesh->faces_begin( ) ; curFace != _mesh->faces_end( ) ; curFace++ ) {
-        if(_mesh->property(patchId, *curFace) == patch){
             for ( MyMesh::FaceEdgeIter curEdge = _mesh->fe_iter( *curFace ) ; curEdge.is_valid() ; curEdge++ ) {
 
                 FaceHandle fh0 = *curFace;
@@ -250,10 +225,11 @@ void MainWindow::computeWeight( MyMesh *_mesh , double coefGeod , int patch) {
                 HalfedgeHandle heh1 = _mesh->halfedge_handle( eh , 1 );
 
                 FaceHandle fh1 = _mesh->face_handle( heh0 );
-                if( fh0.idx() == fh1.idx() ) fh1 = _mesh->face_handle( heh1 );
+                if( fh0.idx() == fh1.idx() )
+                    fh1 = _mesh->face_handle( heh1 );
 
                 //Si la face est en bordure, on passe a l'arête voisine suivante si il n'y pas de face opposée liée
-                if ( fh1.idx () > _mesh->n_faces () || _mesh->property(patchId, fh1) != patch){
+                if ( fh1.idx () > _mesh->n_faces ()){
                     continue;
                 }
 
@@ -264,15 +240,12 @@ void MainWindow::computeWeight( MyMesh *_mesh , double coefGeod , int patch) {
                 double weight = ( coefGeod * ( geodesicDistance / avgGeodesic ) ) +
                                 ( ( 1 - coefGeod ) * ( angularDistance / avgAngular ) );
 
-                //qDebug() << weight;
-                 //Pour le moment
-                 //double weight = geodesicDistance / avgGeodesicDistances();
 
                  dual.addEdge( fh0.idx() , fh1.idx() , weight );
             }
             progress++;
             ui->progressDual->setValue(progress);
-        }
+
     }
 }
 
@@ -315,27 +288,22 @@ void MainWindow::displayAngularDistances() {
 
 void MainWindow::computeDirectDistances(MyMesh *_mesh) {
     int progress = 0;
-    ui->progressDistance->setRange(0, _mesh->n_faces());
-    ui->progressDistance->setFormat("%p%");
-    ui->progressDistance->setValue(progress);
+    ui->progressComputeDistance->setRange(0, _mesh->n_faces());
+    ui->progressComputeDistance->setFormat("%p%");
+    ui->progressComputeDistance->setValue(progress);
      for(MyMesh::FaceIter curFace = _mesh->faces_begin( ) ; curFace != _mesh->faces_end( ) ; curFace++) {
          for(MyMesh::FaceIter curFace2 = _mesh->faces_begin( ) ; curFace2 != _mesh->faces_end( ) ; curFace2++) {
              FaceHandle fh0 = *curFace;
              FaceHandle fh1 = *curFace2;
-             if ( fh0.idx( ) == fh1.idx( ) ||
-                  directDistances.find( std::make_pair( fh0.idx() , fh1.idx() ) ) != directDistances.end() ||
+             if ( directDistances.find( std::make_pair( fh0.idx() , fh1.idx() ) ) != directDistances.end() ||
                   directDistances.find( std::make_pair( fh1.idx() , fh0.idx() ) ) != directDistances.end() ) continue;
 
-             MyMesh::Point center0 = faceGravityCenter( _mesh , fh0.idx( ) );
-             MyMesh::Point center1 = faceGravityCenter( _mesh , fh1.idx() );
-
-             VectorT<float, 3> vector = center1 - center0;
-             double length = abs( vector.norm() );
+             double length = dijkstraDual(fh0.idx(), fh1.idx());
 
              directDistances[std::make_pair(  fh0.idx() , fh1.idx() )] = length;
          }
          progress++;
-         ui->progressDistance->setValue(progress);
+         ui->progressComputeDistance->setValue(progress);
      }
 }
 
@@ -355,18 +323,109 @@ void MainWindow::computeProbabilities(MyMesh *_mesh, QVector<int> IdReps, int k)
     ui->progressProba->setFormat("%p%");
     ui->progressProba->setValue(progress);
     for(int i = 0; i < patches[k].size(); i++){
-
-        QVector<double> distRep = _mesh->property(dist, _mesh->face_handle(patches[k][i]));
-        double ProbB = distRep[0] / (distRep[0] + distRep[1]);
+        double ProbB = 0;
+        if(directDistances.find( std::make_pair( patches[k][i] , IdReps[0]) ) != directDistances.end()){
+            if(directDistances.find( std::make_pair( patches[k][i] , IdReps[1]) ) != directDistances.end()){
+                ProbB = directDistances.find( std::make_pair( patches[k][i] , IdReps[0]))->second /
+                        (directDistances.find( std::make_pair( patches[k][i] , IdReps[0]))->second + directDistances.find( std::make_pair( patches[k][i] , IdReps[1]))->second);
+            } else if(directDistances.find( std::make_pair(IdReps[1],  patches[k][i]) ) != directDistances.end()){
+                ProbB = directDistances.find( std::make_pair( patches[k][i] , IdReps[0]))->second /
+                        (directDistances.find( std::make_pair( patches[k][i] , IdReps[0]))->second + directDistances.find( std::make_pair( IdReps[1], patches[k][i]))->second);
+            }
+        } else if(directDistances.find( std::make_pair(IdReps[0], patches[k][i] ) ) != directDistances.end()){
+            if(directDistances.find( std::make_pair( patches[k][i] , IdReps[1]) ) != directDistances.end()){
+                ProbB = directDistances.find( std::make_pair( IdReps[0], patches[k][i]))->second /
+                        (directDistances.find( std::make_pair( IdReps[0], patches[k][i]))->second + directDistances.find( std::make_pair( patches[k][i] , IdReps[1]))->second);
+            } else if(directDistances.find( std::make_pair(IdReps[1],  patches[k][i]) ) != directDistances.end()){
+                ProbB = directDistances.find( std::make_pair( IdReps[0], patches[k][i]))->second /
+                        (directDistances.find( std::make_pair( IdReps[0], patches[k][i]))->second + directDistances.find( std::make_pair( IdReps[1], patches[k][i]))->second);
+            }
+        }
 
         _mesh->property(PB, _mesh->face_handle(patches[k][i])).push_back(1-ProbB);
         _mesh->property(PB, _mesh->face_handle(patches[k][i])).push_back(ProbB);
 
-        nbDijkstraDone++;
-        ui->progressDijkstra->setValue(nbDijkstraDone);
         progress++;
         ui->progressProba->setValue(progress);
     }
+}
+
+vector<string> split(const string& str, const string& delim)
+{
+    vector<string> tokens;
+    size_t prev = 0, pos = 0;
+    do
+    {
+        pos = str.find(delim, prev);
+        if (pos == string::npos) pos = str.length();
+        string token = str.substr(prev, pos-prev);
+        if (!token.empty()) tokens.push_back(token);
+        prev = pos + delim.length();
+    }
+    while (pos < str.length() && prev < str.length());
+    return tokens;
+}
+
+void MainWindow::on_pushButtonLoadDistance_clicked(){
+    fileNameDistance = QFileDialog::getOpenFileName(this, tr("Open Mesh"), "", tr("Fichier de distance (*.txt)"));
+
+    QStringList nameAll = fileNameDistance.split("/");
+
+    QString name = nameAll.back();
+    ui->labelLoadDistance->setText(name);
+    ifstream fichier(fileNameDistance.toStdString(), ios::in);
+
+    ui->label->setText("Processing ...");
+    ui->label->setStyleSheet("color: #FF9900;");
+
+    if(fichier) {
+        directDistances.clear();
+        std::string ligne;
+        while(getline(fichier, ligne)) {
+            std::vector<std::string> values = split(ligne, " ");
+            directDistances[std::make_pair(std::stoi(values[0]), std::stoi(values[1]))] = std::stod(values[2]);
+        }
+        fichier.close();
+        ui->label->setText("Finished !");
+        ui->label->setStyleSheet("color: #00FF00;");
+
+    } else {
+        cerr << "Impossible d'ouvrir le fichier !" << endl;
+        ui->label->setText("ERROR !!");
+        ui->label->setStyleSheet("color: #FF0000;");
+    }
+}
+
+void MainWindow::on_pushButtonComputeDistance_clicked(){
+
+    dual.clear();
+
+    computeAngularDistances( &mesh );
+    computeGeodesicDistances( &mesh );
+
+    /* a mon moi du futur, il faut regarder ces resultats.*/
+    computeWeight(&mesh , coefGeod);
+    dual.displayGraph();
+
+
+    directDistances.clear();
+    computeDirectDistances(&mesh);
+    QStringList name = fileName.split(".obj");
+    string finalName = name.at(0).toLocal8Bit().data();
+    finalName.append("_" + to_string(coefGeod) + ".txt");
+    ofstream fichier(finalName, ios::out | ios::trunc);
+
+    if(fichier) {
+        std::map<std::pair<int, int>,double>::iterator it;
+        for(it = directDistances.begin(); it != directDistances.end(); it++){
+            fichier << it->first.first << " " << it->first.second << " " << it->second << endl;
+        }
+
+        fichier.close();
+    } else {
+        cerr << "Impossible d'ouvrir le fichier !" << endl;
+    }
+
 }
 
 void MainWindow::segmentationSimple(MyMesh* _mesh, int k) {
@@ -381,16 +440,17 @@ void MainWindow::segmentationSimple(MyMesh* _mesh, int k) {
     ui->progressTotal->setValue(0);
     ui->progressColor->setValue(0);
     ui->progressDual->setValue(0);
-    ui->progressDijkstra->setValue(0);
-    ui->progressDistance->setValue(0);
     ui->progressProba->setValue(0);
+    ui->progressComputeDistance->setValue(0);
     ui->labelChoix->setText("Waiting ...");
     ui->labelChoix->setStyleSheet("color: #909090;");
+
+    ui->label->setText("Waiting ...");
+    ui->label->setStyleSheet("color: #909090;");
 
     int nbStepsDone = 0;
 
     displayMesh(_mesh);
-    _mesh->add_property(dist);
     _mesh->add_property(patchId);    
     _mesh->add_property(PB);
 
@@ -399,15 +459,12 @@ void MainWindow::segmentationSimple(MyMesh* _mesh, int k) {
         patches[0].push_back(curFace->idx());
     }
 
-    computeAngularDistances( _mesh );
-    computeGeodesicDistances( _mesh );
 
     ui->progressTotal->setRange(0, (k-1)*5);
     ui->progressTotal->setFormat("%p%");
     ui->progressTotal->setValue(nbStepsDone);
 
-    directDistances.clear();
-    computeDirectDistances(_mesh);
+
 
     for(int i = 1; i < k; i++){
 
@@ -423,8 +480,7 @@ void MainWindow::segmentationSimple(MyMesh* _mesh, int k) {
         nbStepsDone++;
         ui->progressTotal->setValue(nbStepsDone);
 
-        dual.clear();
-        computeWeight( _mesh , coefGeod , chosenPatch);
+
         nbStepsDone++;
         ui->progressTotal->setValue(nbStepsDone);
 
@@ -462,23 +518,11 @@ void MainWindow::segmentationSimple(MyMesh* _mesh, int k) {
 
             REPs = {reps.first, reps.second};
 
-            ui->progressDijkstra->setRange(0, patches[chosenPatch].size());
-            ui->progressDijkstra->setFormat("%p%");
-            ui->progressDijkstra->setValue(0);
-
             for(int i = 0; i < patches[currentId].size(); i++){
+                _mesh->property(patchId, _mesh->face_handle(patches[currentId][i])) = chosenPatch;
                 patches[chosenPatch].push_back(patches[currentId][i]);
             }
             patches[currentId].clear();
-
-            for(int i = 0; i < patches[chosenPatch].size(); i++){
-                _mesh->property(dist, _mesh->face_handle(patches[chosenPatch][i])).clear();
-            }
-
-            for(int i = 0; i < 2; i++) {
-                dijkstraByREP(_mesh, REPs[i], chosenPatch);
-                nbDijkstraDone = 0;
-            }
 
             for(int i = 0; i < patches[chosenPatch].size(); i++){
                 _mesh->property(PB, _mesh->face_handle(patches[chosenPatch][i])).clear();
@@ -486,7 +530,14 @@ void MainWindow::segmentationSimple(MyMesh* _mesh, int k) {
 
             computeProbabilities(_mesh, REPs, chosenPatch);
 
-            double distMAX = dijkstraDual(REPs[0], REPs[1]);
+            double distMAX;
+
+            if(directDistances.find( std::make_pair( REPs[0], REPs[1]) ) != directDistances.end()){
+                distMAX = directDistances.find( std::make_pair( REPs[0], REPs[1]) )->second;
+            } else {
+                distMAX = directDistances.find( std::make_pair( REPs[1], REPs[0]) )->second;
+            }
+
 
             ambiguousFaces.clear();
 
@@ -724,7 +775,7 @@ void MainWindow::on_pushButton_segmentation_clicked() {
 void MainWindow::on_pushButton_chargement_clicked()
 {
     // fenêtre de sélection des fichiers
-    QString fileName = QFileDialog::getOpenFileName(this, tr("Open Mesh"), "", tr("Mesh Files (*.obj)"));
+    fileName = QFileDialog::getOpenFileName(this, tr("Open Mesh"), "", tr("Mesh Files (*.obj)"));
 
     // chargement du fichier .obj dans la variable globale "mesh"
     OpenMesh::IO::read_mesh(mesh, fileName.toUtf8().constData());
