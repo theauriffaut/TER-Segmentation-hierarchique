@@ -65,6 +65,7 @@ public:
     double dijkstraDual(int v1, int v2);
 
     FPropHandleT<int> patchId;
+    FPropHandleT<bool> marked;
 
     FPropHandleT<QVector<double>> PB;
 
@@ -72,6 +73,7 @@ public:
     void displayDirectDistances();
     void computeProbabilities(MyMesh *_mesh, QVector<int> IdReps, int k);
 
+    void faceCourse(int id, int chosenPatch, int currentId, bool firstCourse, MyMesh *_mesh);
 private slots:
     void on_pushButton_chargement_clicked();
     void on_pushButton_segmentation_clicked();

@@ -428,6 +428,70 @@ void MainWindow::on_pushButtonComputeDistance_clicked(){
 
 }
 
+void MainWindow::faceCourse(int id, int chosenPatch, int currentId, bool firstCourse, MyMesh* _mesh){
+    if(_mesh->face_handle(id).is_valid()){
+        if(_mesh->property(marked,_mesh->face_handle(id)) == false){
+            if(firstCourse){
+                if(_mesh->property(patchId, _mesh->face_handle(id)) == -1){
+
+                    if(_mesh->property(PB, _mesh->face_handle(id))[0] >= minProba)
+                    {
+                        _mesh->property(patchId, _mesh->face_handle(id)) = chosenPatch;
+                        _mesh->property(marked, _mesh->face_handle(id)) = true;
+
+                        patches[chosenPatch].push_back(id);
+                        ambiguousFaces.removeOne(id);
+
+                        for (MyMesh::FaceEdgeIter curEdge = _mesh->fe_iter(_mesh->face_handle(id)); curEdge.is_valid(); curEdge++) {
+                            int fh1 = _mesh->face_handle(_mesh->halfedge_handle((* curEdge),0)).idx();
+                            if(id == fh1){
+                                fh1 = _mesh->face_handle(_mesh->halfedge_handle((* curEdge),1)).idx();
+                            }
+                            faceCourse(fh1, chosenPatch, currentId, firstCourse, _mesh);
+                        }
+                    }
+                }
+            } else {
+                if(_mesh->property(patchId, _mesh->face_handle(id)) == -1){
+
+                    _mesh->property(patchId, _mesh->face_handle(id)) = currentId;
+                    _mesh->property(marked, _mesh->face_handle(id)) = true;
+
+                    patches[currentId].push_back(id);
+                    ambiguousFaces.removeOne(id);
+
+                    for (MyMesh::FaceEdgeIter curEdge = _mesh->fe_iter(_mesh->face_handle(id)); curEdge.is_valid(); curEdge++) {
+                        int fh1 = _mesh->face_handle(_mesh->halfedge_handle((* curEdge),0)).idx();
+                        if(id == fh1){
+                            fh1 = _mesh->face_handle(_mesh->halfedge_handle((* curEdge),1)).idx();
+                        }
+                        faceCourse(fh1, chosenPatch, currentId, firstCourse, _mesh);
+                    }
+                }
+            }
+        } else {
+            if(!firstCourse){
+                if(_mesh->property(patchId, _mesh->face_handle(id)) == chosenPatch){
+                    if(_mesh->property(PB, _mesh->face_handle(id))[1] >= minProba){
+
+                        _mesh->property(patchId, _mesh->face_handle(id)) = -1;
+                        ambiguousFaces.push_back(id);
+                        patches[chosenPatch].removeOne(id);
+
+                        for (MyMesh::FaceEdgeIter curEdge = _mesh->fe_iter(_mesh->face_handle(id)); curEdge.is_valid(); curEdge++) {
+                            int fh1 = _mesh->face_handle(_mesh->halfedge_handle((* curEdge),0)).idx();
+                            if(id == fh1){
+                                fh1 = _mesh->face_handle(_mesh->halfedge_handle((* curEdge),1)).idx();
+                            }
+                            faceCourse(fh1, chosenPatch, currentId, firstCourse, _mesh);
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
 void MainWindow::segmentationSimple(MyMesh* _mesh, int k) {
 
     colors = { MyMesh::Color(102,0,255), MyMesh::Color(254,231,240), MyMesh::Color(212,115,212), MyMesh::Color(255,0,255), MyMesh::Color(121,248,248), MyMesh::Color(223,109,20),
@@ -452,6 +516,7 @@ void MainWindow::segmentationSimple(MyMesh* _mesh, int k) {
 
     displayMesh(_mesh);
     _mesh->add_property(patchId);    
+    _mesh->add_property(marked);
     _mesh->add_property(PB);
 
     for ( MyMesh::FaceIter curFace = _mesh->faces_begin( ) ; curFace != _mesh->faces_end( ) ; curFace++ ) {
@@ -512,8 +577,9 @@ void MainWindow::segmentationSimple(MyMesh* _mesh, int k) {
         currentId++;
 
         bool complete = false;
-        while(!complete){
-
+        int test = 0;
+        while(!complete && test <= 10){
+            test++;
             ui->progressDual->setRange(0, patches[chosenPatch].size());
 
             REPs = {reps.first, reps.second};
@@ -541,7 +607,26 @@ void MainWindow::segmentationSimple(MyMesh* _mesh, int k) {
 
             ambiguousFaces.clear();
 
-            QVector<int>::iterator it = patches[chosenPatch].begin();
+            for(int i = 0; i < patches[currentId].size(); i++){
+                _mesh->property(patchId, _mesh->face_handle(patches[currentId][i])) = -1;
+                _mesh->property(marked, _mesh->face_handle(patches[currentId][i])) = false;
+                ambiguousFaces.push_back(patches[currentId][i]);
+            }
+            patches[currentId].clear();
+
+            for(int i = 0; i < patches[chosenPatch].size(); i++){
+                _mesh->property(patchId, _mesh->face_handle(patches[chosenPatch][i])) = -1;
+                _mesh->property(marked, _mesh->face_handle(patches[chosenPatch][i])) = false;
+                ambiguousFaces.push_back(patches[chosenPatch][i]);
+            }
+            patches[chosenPatch].clear();
+
+            faceCourse(REPs[0], chosenPatch, currentId, true, _mesh);
+            displayMesh(_mesh);
+
+            faceCourse(REPs[1], chosenPatch, currentId, false, _mesh);
+
+            /*QVector<int>::iterator it = patches[chosenPatch].begin();
             while(it != patches[chosenPatch].end()){
                 bool alreadyColored = false;
 
@@ -572,7 +657,7 @@ void MainWindow::segmentationSimple(MyMesh* _mesh, int k) {
                         it++;
                     }
                 }
-            }
+            }*/
 
             double probRight = 0;
             double probLeft = 0;
@@ -643,10 +728,10 @@ void MainWindow::segmentationSimple(MyMesh* _mesh, int k) {
 
             newReps.second = idMinB;
 
-            _mesh->set_color(_mesh->face_handle(newReps.first), MyMesh::Color(0,255,0));
-            _mesh->set_color(_mesh->face_handle(newReps.second), MyMesh::Color(0,255,0));
-            _mesh->set_color(_mesh->face_handle(reps.first), colors[chosenPatch]);
-            _mesh->set_color(_mesh->face_handle(reps.second), colors[currentId]);
+//            _mesh->set_color(_mesh->face_handle(newReps.first), MyMesh::Color(0,255,0));
+//            _mesh->set_color(_mesh->face_handle(newReps.second), MyMesh::Color(0,255,0));
+//            _mesh->set_color(_mesh->face_handle(reps.first), colors[chosenPatch]);
+//            _mesh->set_color(_mesh->face_handle(reps.second), colors[currentId]);
 
             qDebug() << "Nouvelles Faces :" << newReps << "Ancienne Face :" << reps;
             if(newReps.first != reps.first && newReps.first != reps.second){
