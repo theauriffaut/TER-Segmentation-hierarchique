@@ -492,6 +492,72 @@ void MainWindow::faceCourse(int id, int chosenPatch, int currentId, bool firstCo
     }
 }
 
+bool MainWindow::findREPs(QVector<QPair<int,int>> vec, int repA, int repB){
+    if(!vec.empty()){
+        for(int i = 0; i < vec.size(); i++){
+            if(vec[i] == QPair<int,int>(repA, repB)){
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
+int MainWindow::findOneAmbiguous(){
+    if(!ambiguousFaces.empty()){
+        return ambiguousFaces[0];
+    }
+    return -1;
+}
+
+void MainWindow::ambiguousCourse(int id, MyMesh* _mesh){
+    if(!_mesh->property(ambiguousMarked, _mesh->face_handle(id)) && _mesh->property(patchId, _mesh->face_handle(id)) == -1){
+        _mesh->property(ambiguousMarked, _mesh->face_handle(id)) = true;
+        waitingAmbiguous.push_back(id);
+        for (MyMesh::FaceEdgeIter curEdge = _mesh->fe_iter(_mesh->face_handle(id)); curEdge.is_valid(); curEdge++) {
+            int fh1 = _mesh->face_handle(_mesh->halfedge_handle((* curEdge),0)).idx();
+            if(ambiguousFaces[0] == fh1){
+                fh1 = _mesh->face_handle(_mesh->halfedge_handle((* curEdge),1)).idx();
+            }
+            if(_mesh->face_handle(fh1).is_valid()){
+                ambiguousCourse(fh1, _mesh);
+            }
+
+        }
+    } else if(!_mesh->property(ambiguousMarked, _mesh->face_handle(id)) && _mesh->property(patchId, _mesh->face_handle(id)) != -1){
+        _mesh->property(ambiguousMarked, _mesh->face_handle(id)) = true;
+        if(repartAmbiguous.find(_mesh->property(patchId, _mesh->face_handle(id))) != repartAmbiguous.end()){
+            repartAmbiguous.at(_mesh->property(patchId, _mesh->face_handle(id)))++;
+        } else {
+            repartAmbiguous.insert(make_pair(_mesh->property(patchId, _mesh->face_handle(id)), 0));
+        }
+    }
+}
+
+double MainWindow::patchCourse(int patch){
+    double poids = 0;
+
+    for(int i = 0; i < patches[patch].size(); i++){
+        std::map<int , double>::iterator it;
+        int pos = dual.getVertexById(patches[patch][i]);
+        if(pos == -1){
+            qDebug() << "ERREUR pos";
+        }
+        std::map<int , double> map = dual[pos].m_adjacencyList;
+        for(it = map.begin(); it != map.end(); it++){
+            if(directDistances.find( std::make_pair( patches[patch][i] , it->first)) != directDistances.end()){
+                poids += directDistances.find( std::make_pair( patches[patch][i] , it->first))->second;
+                nbEdges++;
+            } else if(directDistances.find( std::make_pair(it->first, patches[patch][i])) != directDistances.end()){
+                poids += directDistances.find( std::make_pair(it->first, patches[patch][i]))->second;
+                nbEdges++;
+            }
+        }
+
+    }
+    return poids;
+}
+
 void MainWindow::segmentationSimple(MyMesh* _mesh, int k) {
 
     colors = { MyMesh::Color(102,0,255), MyMesh::Color(254,231,240), MyMesh::Color(212,115,212), MyMesh::Color(255,0,255), MyMesh::Color(121,248,248), MyMesh::Color(223,109,20),
@@ -500,6 +566,15 @@ void MainWindow::segmentationSimple(MyMesh* _mesh, int k) {
 
     patches = QVector<QVector<int>>(k);
     currentId = 0;
+
+
+    dual.clear();
+
+    computeAngularDistances( &mesh );
+    computeGeodesicDistances( &mesh );
+
+    /* a mon moi du futur, il faut regarder ces resultats.*/
+    computeWeight(&mesh , coefGeod);
 
     ui->progressTotal->setValue(0);
     ui->progressColor->setValue(0);
@@ -517,6 +592,7 @@ void MainWindow::segmentationSimple(MyMesh* _mesh, int k) {
     displayMesh(_mesh);
     _mesh->add_property(patchId);    
     _mesh->add_property(marked);
+    _mesh->add_property(ambiguousMarked);
     _mesh->add_property(PB);
 
     for ( MyMesh::FaceIter curFace = _mesh->faces_begin( ) ; curFace != _mesh->faces_end( ) ; curFace++ ) {
@@ -537,11 +613,44 @@ void MainWindow::segmentationSimple(MyMesh* _mesh, int k) {
         ui->labelChoix->setStyleSheet("color: #909090;");
 
         int chosenPatch = 0;
-        for(int i = 0; i < patches.size(); i++){
-            if(patches[chosenPatch].size() < patches[i].size()){
-                chosenPatch = i;
+        int nbFaces = (_mesh->n_faces() * minSizePatch) / 100;
+
+        for(int j = 0; j < patches.size(); j++){
+            if(patches[chosenPatch].size() < patches[j].size()){
+                chosenPatch = j;
             }
         }
+
+
+
+
+        /*
+        patchSizes.clear();
+        for(int j = 0; j < patches.size(); j++){
+            patchSizes.push_back(0);
+        }
+        for(int j = 0; j < patches.size(); j++){
+            nbEdges = 0;
+            if(!patches[j].empty()){
+                patchSizes[j] = patchCourse(j);
+            }
+        }
+        bool finish = true;
+        for(int j = 0; j < patches.size(); j++){
+            if(patches[j].size() >= nbFaces){
+                finish = false;
+            }
+        }
+        if(finish){
+            qDebug() << "Programme fini avec" << i << "patches.";
+            return;
+        }
+        for(int j = 0; j < patchSizes.size(); j++){
+            if(patchSizes[chosenPatch] < patchSizes[j] && patches[j].size() >= nbFaces){
+                chosenPatch = j;
+            }
+        }*/
+
         nbStepsDone++;
         ui->progressTotal->setValue(nbStepsDone);
 
@@ -577,9 +686,8 @@ void MainWindow::segmentationSimple(MyMesh* _mesh, int k) {
         currentId++;
 
         bool complete = false;
-        int test = 0;
-        while(!complete && test <= 10){
-            test++;
+        QVector<QPair<int,int>> oldREPs;
+        while(!complete){
             ui->progressDual->setRange(0, patches[chosenPatch].size());
 
             REPs = {reps.first, reps.second};
@@ -626,53 +734,29 @@ void MainWindow::segmentationSimple(MyMesh* _mesh, int k) {
 
             faceCourse(REPs[1], chosenPatch, currentId, false, _mesh);
 
-            /*QVector<int>::iterator it = patches[chosenPatch].begin();
-            while(it != patches[chosenPatch].end()){
-                bool alreadyColored = false;
-
-                if(_mesh->property(PB, _mesh->face_handle(*it))[0] >= minProba) {
-                    alreadyColored = true;
-                }
-                if(!alreadyColored){
-                    if(_mesh->property(PB, _mesh->face_handle(*it))[1] >= minProba){
-                        //qDebug() << *it << "Appartient au patch " << currentId;
-                        _mesh->property(patchId, _mesh->face_handle(*it)) = currentId;
-                        patches[currentId].push_back(*it);
-                        patches[chosenPatch].removeOne(*it);
-                        alreadyColored = true;
-                    } else {
-                        //qDebug() << *it << "Appartient à personne ";
-                        _mesh->property(patchId, _mesh->face_handle(*it)) = -1;
-                        ambiguousFaces.push_back(*it);
-                        patches[chosenPatch].removeOne(*it);
-                    }
-                } else {
-                    if(_mesh->property(PB, _mesh->face_handle(*it))[1] >= minProba){
-                        //qDebug() << *it << "Face ambigue ";
-                        _mesh->property(patchId, _mesh->face_handle(*it)) = -1;
-                        ambiguousFaces.push_back(*it);
-                        patches[chosenPatch].removeOne(*it);
-                    } else {
-                        //qDebug() << *it << "Appartient au patch " << chosenPatch;
-                        it++;
-                    }
-                }
-            }*/
-
-            double probRight = 0;
-            double probLeft = 0;
             for(int i = 0; i < ambiguousFaces.size(); i++){
-                probRight += _mesh->property(PB, _mesh->face_handle(ambiguousFaces[i]))[0];
-                probLeft += _mesh->property(PB, _mesh->face_handle(ambiguousFaces[i]))[1];
-            }
-            int biggest = chosenPatch;
-            if(probRight < probLeft){
-                biggest = currentId;
+                _mesh->property(ambiguousMarked, _mesh->face_handle(ambiguousFaces[i])) = false;
             }
 
-            for(int i = 0; i < ambiguousFaces.size(); i++){
-                _mesh->property(patchId, _mesh->face_handle(ambiguousFaces[i])) = biggest;
-                patches[biggest].push_back(ambiguousFaces[i]);
+            int ambiguous = findOneAmbiguous();
+            while(ambiguous != -1){
+                qDebug() << ambiguous;
+                repartAmbiguous.clear();
+                waitingAmbiguous.clear();
+                ambiguousCourse(ambiguous, _mesh);
+                std::map<int,int>::iterator it;
+                std::map<int,int>::iterator itMax = repartAmbiguous.begin();
+                for (it = repartAmbiguous.begin(); it != repartAmbiguous.end(); it++) {
+                    if(itMax->second < it->second){
+                        itMax = it;
+                    }
+                }
+                for(int i = 0; i < waitingAmbiguous.size(); i++){
+                    _mesh->property(patchId, _mesh->face_handle(waitingAmbiguous[i])) = itMax->first;
+                    patches[itMax->first].push_back(waitingAmbiguous[i]);
+                    ambiguousFaces.removeOne(waitingAmbiguous[i]);
+                }
+                ambiguous = findOneAmbiguous();
             }
 
             std::pair<int, int> newReps;
@@ -734,11 +818,9 @@ void MainWindow::segmentationSimple(MyMesh* _mesh, int k) {
 //            _mesh->set_color(_mesh->face_handle(reps.second), colors[currentId]);
 
             qDebug() << "Nouvelles Faces :" << newReps << "Ancienne Face :" << reps;
-            if(newReps.first != reps.first && newReps.first != reps.second){
+            if(!findREPs(oldREPs, newReps.first, newReps.second)){
                 complete = false;
-                reps = newReps;
-            } else if(newReps.second != reps.first && newReps.second != reps.second){
-                complete = false;
+                oldREPs.push_back(QPair<int,int>(newReps.first, newReps.second));
                 reps = newReps;
             } else if(newReps.first == newReps.second){
                 qDebug() << "Erreur: faces représentantes égales.";
@@ -787,8 +869,7 @@ void MainWindow::segmentationSimple(MyMesh* _mesh, int k) {
 //        qDebug() << patches[currentId].size();
 //        qDebug() << nb+patches[chosenPatch].size()+patches[currentId].size();
 
-        int nbFaces = (_mesh->n_faces() * minSizePatch) / 100;
-
+/*
         bool modif = false;
         for(int y = 0; y < patches.size(); y++){
             if(patches[y].size() <= nbFaces && patches[y].size() != 0){
@@ -840,7 +921,7 @@ void MainWindow::segmentationSimple(MyMesh* _mesh, int k) {
 
         if(compteur == 5){
             break;
-        }
+        }*/
         displayMesh(_mesh);
     }
     displayMesh(_mesh);

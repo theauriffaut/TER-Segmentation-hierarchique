@@ -66,6 +66,7 @@ public:
 
     FPropHandleT<int> patchId;
     FPropHandleT<bool> marked;
+    FPropHandleT<bool> ambiguousMarked;
 
     FPropHandleT<QVector<double>> PB;
 
@@ -74,6 +75,10 @@ public:
     void computeProbabilities(MyMesh *_mesh, QVector<int> IdReps, int k);
 
     void faceCourse(int id, int chosenPatch, int currentId, bool firstCourse, MyMesh *_mesh);
+    bool findREPs(QVector<QPair<int, int> > vec, int repA, int repB);
+    int findOneAmbiguous();
+    void ambiguousCourse(int id, MyMesh *_mesh);
+    double patchCourse(int patch);
 private slots:
     void on_pushButton_chargement_clicked();
     void on_pushButton_segmentation_clicked();
@@ -88,6 +93,10 @@ private:
     std::map<pair<int, int>, double> angularDistances;
     std::map<pair<int, int>, double> geodesicDistances;
     std::map<pair<int, int>, double> directDistances;
+    std::map<int,int> repartAmbiguous;
+    QVector<int> waitingAmbiguous;
+    QVector<double> patchSizes;
+    int nbEdges;
     QVector<MyMesh::Color> colors;
     Graph dual;
     Ui::MainWindow *ui;
