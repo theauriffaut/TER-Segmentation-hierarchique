@@ -442,16 +442,8 @@ void MainWindow::segmentationSimple(MyMesh* _mesh, int k) {
                 }
             }
         }
-
-//        bool complete = false;
-//        while(!complete){
-
-//        }
-
         nbStepsDone++;
         ui->progressTotal->setValue(nbStepsDone);
-
-        //dual.displayGraph();
 
         QVector<int> REPs = {reps.first, reps.second};
         ui->labelChoix->setText("Finished !");
@@ -486,10 +478,6 @@ void MainWindow::segmentationSimple(MyMesh* _mesh, int k) {
         computeProbabilities(_mesh, REPs, chosenPatch);
         nbStepsDone++;
         ui->progressTotal->setValue(nbStepsDone);
-
-        /*PA = 1 - PB
-        nbStepsDone++;
-        ui->progressTotal->setValue(nbStepsDone);*/
 
         int nbFacesColored = 0;
         ui->progressColor->setRange(0, _mesh->n_faces());
