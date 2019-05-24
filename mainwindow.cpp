@@ -10,7 +10,7 @@
 
 auto compWeight = [](const QPair<int, double> &a, const QPair<int, double> &b) {return a.second > b.second; };
 
-// calcul le plus court chemin en taille à l'aide de l'algorithme de dijkstra
+///Calcul le plus court chemin en taille à l'aide de l'algorithme de dijkstra
 double MainWindow::dijkstraDual(int v1, int v2) {
 
   int NbNodes = dual.getNbVertices();
@@ -75,7 +75,7 @@ double MainWindow::dijkstraDual(int v1, int v2) {
     return Distances[v2];
 }
 
-
+///Calcul de l'angle entre deux faces
 double MainWindow::angleFF(MyMesh* _mesh, int faceID0,  int faceID1)
 {
     FaceHandle fh0 = _mesh->face_handle ( faceID0 );
@@ -90,6 +90,7 @@ double MainWindow::angleFF(MyMesh* _mesh, int faceID0,  int faceID1)
     return acos ( scalar );
 }
 
+///Calcul de la distance angulaire pour toutes les faces adjacentes
 void MainWindow::computeAngularDistances( MyMesh *_mesh ) {
     angularDistances.clear();
     for ( MyMesh::FaceIter curFace = _mesh->faces_begin( ) ; curFace != _mesh->faces_end( ) ; curFace++ ) {
@@ -107,6 +108,7 @@ void MainWindow::computeAngularDistances( MyMesh *_mesh ) {
     }
 }
 
+///Renvoi le centre de gravité d'une face
 MyMesh::Point MainWindow::faceGravityCenter( MyMesh *_mesh , int faceID ) {
     FaceHandle fh = _mesh->face_handle( faceID );
     std::vector<VertexHandle> vertices;
@@ -118,6 +120,7 @@ MyMesh::Point MainWindow::faceGravityCenter( MyMesh *_mesh , int faceID ) {
     return result;
 }
 
+///Discrétise une arête
 std::vector<MyMesh::Point> MainWindow::discretizeEdge( MyMesh *_mesh , int edgeID ) {
     EdgeHandle eh = _mesh->edge_handle( edgeID );
     HalfedgeHandle heh = _mesh->halfedge_handle( eh , 0 );
@@ -144,6 +147,7 @@ std::vector<MyMesh::Point> MainWindow::discretizeEdge( MyMesh *_mesh , int edgeI
     return discretizedPoints;
 }
 
+///Calcul de la distance géodésique entre deux faces à partir d'une arête
 double MainWindow::geodesicDistance( MyMesh *_mesh , int edgeID ) {
     EdgeHandle eh = _mesh->edge_handle( edgeID );
     HalfedgeHandle heh0 = _mesh->halfedge_handle( eh , 0 );
@@ -183,6 +187,7 @@ double MainWindow::geodesicDistance( MyMesh *_mesh , int edgeID ) {
      return ( abs( vector0.norm() ) + abs( vector1.norm() ) );
 }
 
+///Calcul de la distance géodésique pour toutes les arêtes
 void MainWindow::computeGeodesicDistances( MyMesh *_mesh ) {
     geodesicDistances.clear();
     for ( MyMesh::FaceIter curFace = _mesh->faces_begin( ) ; curFace != _mesh->faces_end( ) ; curFace++ ) {
@@ -207,6 +212,7 @@ void MainWindow::computeGeodesicDistances( MyMesh *_mesh ) {
     }
 }
 
+///Calcul le dual du mesh et ajoute un poid à chaque arête de ce dual
 void MainWindow::computeWeight( MyMesh *_mesh , double coefGeod) {
     int progress = 0;
     ui->progressDual->setRange(0, _mesh->n_faces());
@@ -249,7 +255,7 @@ void MainWindow::computeWeight( MyMesh *_mesh , double coefGeod) {
     }
 }
 
-
+///Moyenne de la distance angulaire du mesh
 double MainWindow::avgAngularDistances() {
     double result = 0.0;
     for (std::map<std::pair<int , int> , double>::iterator it = angularDistances.begin() ; it != angularDistances.end() ; it++ ) {
@@ -258,6 +264,7 @@ double MainWindow::avgAngularDistances() {
     return result / angularDistances.size();
 }
 
+///Moyenne de la distance géodésique du mesh
 double MainWindow::avgGeodesicDistances() {
     double result = 0.0;
     for (std::map<std::pair<int , int> , double>::iterator it = geodesicDistances.begin() ; it != geodesicDistances.end() ; it++ ) {
@@ -286,6 +293,7 @@ void MainWindow::displayAngularDistances() {
     }
 }
 
+///Calcul de la distance géodésique entre toutes les faces du mesh (très gourmand)
 void MainWindow::computeDirectDistances(MyMesh *_mesh) {
     int progress = 0;
     ui->progressComputeDistance->setRange(0, _mesh->n_faces());
@@ -317,6 +325,7 @@ void MainWindow::displayDirectDistances() {
     }
 }
 
+///Calcul des probabilités d'appartenir à une face représentante pour chaque face d'un patch
 void MainWindow::computeProbabilities(MyMesh *_mesh, QVector<int> IdReps, int k) {
     int progress = 0;
     ui->progressProba->setRange(0, patches[k].size());
@@ -366,6 +375,7 @@ vector<string> split(const string& str, const string& delim)
     return tokens;
 }
 
+///Rempli le vector directDistance avec les données stocké dans un fichier txt
 void MainWindow::on_pushButtonLoadDistance_clicked(){
     fileNameDistance = QFileDialog::getOpenFileName(this, tr("Open Mesh"), "", tr("Fichier de distance (*.txt)"));
 
@@ -396,6 +406,7 @@ void MainWindow::on_pushButtonLoadDistance_clicked(){
     }
 }
 
+///Crée une fichier txt rempli des valeurs de distance géodésique
 void MainWindow::on_pushButtonComputeDistance_clicked(){
 
     dual.clear();
@@ -428,6 +439,7 @@ void MainWindow::on_pushButtonComputeDistance_clicked(){
 
 }
 
+///Permet la répartition du patch par propagation de maniere récurente
 void MainWindow::faceCourse(int id, int chosenPatch, int currentId, bool firstCourse, MyMesh* _mesh){
     if(_mesh->face_handle(id).is_valid()){
         if(_mesh->property(marked,_mesh->face_handle(id)) == false){
@@ -492,6 +504,7 @@ void MainWindow::faceCourse(int id, int chosenPatch, int currentId, bool firstCo
     }
 }
 
+///Regarde si les faces représentante ont déjà été tiré
 bool MainWindow::findREPs(QVector<QPair<int,int>> vec, int repA, int repB){
     if(!vec.empty()){
         for(int i = 0; i < vec.size(); i++){
@@ -503,6 +516,7 @@ bool MainWindow::findREPs(QVector<QPair<int,int>> vec, int repA, int repB){
     return false;
 }
 
+///Renvoie la première occurence de face ambigüe trouvé
 int MainWindow::findOneAmbiguous(){
     if(!ambiguousFaces.empty()){
         return ambiguousFaces[0];
@@ -510,6 +524,7 @@ int MainWindow::findOneAmbiguous(){
     return -1;
 }
 
+///Répartition des faces ambigüe
 void MainWindow::ambiguousCourse(int id, MyMesh* _mesh){
     if(!_mesh->property(ambiguousMarked, _mesh->face_handle(id)) && _mesh->property(patchId, _mesh->face_handle(id)) == -1){
         _mesh->property(ambiguousMarked, _mesh->face_handle(id)) = true;
@@ -534,6 +549,7 @@ void MainWindow::ambiguousCourse(int id, MyMesh* _mesh){
     }
 }
 
+///Cherche le patch avec le poid le plus important (à améliorer)
 double MainWindow::patchCourse(int patch){
     double poids = 0;
 
@@ -558,6 +574,7 @@ double MainWindow::patchCourse(int patch){
     return poids;
 }
 
+///Fonction principale qui permet la segmentation hiérarchique
 void MainWindow::segmentationSimple(MyMesh* _mesh, int k) {
 
     colors = { MyMesh::Color(102,0,255), MyMesh::Color(254,231,240), MyMesh::Color(212,115,212), MyMesh::Color(255,0,255), MyMesh::Color(121,248,248), MyMesh::Color(223,109,20),
